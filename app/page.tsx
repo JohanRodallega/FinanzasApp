@@ -6,6 +6,7 @@ import { AddIncomeModal } from '@/components/ingresos/AddIncomeModal'
 import { AddExpenseModal } from '@/components/gastos/AddExpenseModal'
 import { AddCreditCardModal } from '@/components/tarjetas/AddCreditCardModal'
 import { AddCardTransactionModal } from '@/components/tarjetas/AddCardTransactionModal'
+import { DebtsModule } from '@/components/deudas/DebtsModule'
 import { FinancialCharts } from '@/components/dashboard/FinancialCharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -17,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
-import { Income, BasicExpense, CreditCard, CardTransaction } from '@/types/finance'
+import { Income, BasicExpense, CreditCard, CardTransaction, Debt } from '@/types/finance'
 import { DollarSign, CreditCard as CardIcon, Receipt, TrendingDown, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -36,6 +37,9 @@ export default function Home() {
 
   const [transactions, setTransactions] = useState<CardTransaction[]>([])
   const [loadingTransactions, setLoadingTransactions] = useState(true)
+
+  const [debts, setDebts] = useState<Debt[]>([])
+  const [loadingDebts, setLoadingDebts] = useState(true)
 
   // 2. Funciones de Carga de Datos con Filtro de Perfil
   const fetchIncomes = useCallback(async () => {
@@ -82,12 +86,24 @@ export default function Home() {
     setLoadingTransactions(false)
   }, [activeProfile])
 
+  const fetchDebts = useCallback(async () => {
+    setLoadingDebts(true)
+    const { data } = await supabase
+      .from('debts')
+      .select('*')
+      .eq('profile', activeProfile)
+      .order('created_at', { ascending: false })
+    if (data) setDebts(data as Debt[])
+    setLoadingDebts(false)
+  }, [activeProfile])
+
   const fetchAllData = useCallback(() => {
     fetchIncomes()
     fetchExpenses()
     fetchCreditCards()
     fetchTransactions()
-  }, [fetchIncomes, fetchExpenses, fetchCreditCards, fetchTransactions])
+    fetchDebts()
+  }, [fetchIncomes, fetchExpenses, fetchCreditCards, fetchTransactions, fetchDebts])
 
   useEffect(() => {
     fetchAllData()
@@ -471,6 +487,13 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Módulo de Deudas y Préstamos */}
+        <DebtsModule
+          debts={debts}
+          onDebtUpdated={fetchAllData}
+          currentProfile={activeProfile}
+        />
       </main>
     </div>
   )

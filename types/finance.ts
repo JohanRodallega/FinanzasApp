@@ -16,6 +16,17 @@ export interface CardTransaction {
   created_at: string
 }
 
+export interface Debt {
+  id: string
+  title: string
+  total_amount: number
+  paid_amount: number
+  creditor?: string
+  due_date?: string
+  profile: 'me' | 'partner' | 'shared'
+  created_at?: string
+}
+
 export interface Income {
   id: string
   profile_id: string
