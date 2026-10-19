@@ -72,12 +72,13 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950">
+      <DialogTrigger>
+        <Button variant="outline" className="flex items-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950" type="button">
           <Plus className="h-4 w-4" />
           <span>Agregar Gasto Fijo</span>
         </Button>
       </DialogTrigger>
+      
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Gasto Fijo / Básico</DialogTitle>
@@ -111,7 +112,11 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             <Label htmlFor="category">Categoría</Label>
             <Select
               value={category}
-              onValueChange={(val) => setCategory(val)}
+              onValueChange={(val: string | null) => {
+                if (val !== null) {
+                  setCategory(val)
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona categoría" />

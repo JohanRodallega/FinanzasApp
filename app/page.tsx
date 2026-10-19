@@ -127,12 +127,17 @@ export default function Home() {
 
   const handleDeleteTransaction = async (tx: CardTransaction) => {
     const { error } = await supabase.from('card_transactions').delete().eq('id', tx.id)
-    
+
     if (!error) {
       const card = creditCards.find((c) => c.id === tx.card_id)
       if (card) {
-        const newBalance = Math.max(0, Number(card.current_balance || 0) - Number(tx.amount))
-        await supabase.from('credit_cards').update({ current_balance: newBalance }).eq('id', card.id)
+        const currentBal = card.current_balance ?? 0
+        const newBalance = Math.max(0, Number(currentBal) - Number(tx.amount))
+        const { error: updateError } = await supabase
+          .from('credit_cards')
+          .update({ current_balance: newBalance })
+          .eq('id', card.id)
+        if (updateError) console.error('Error al actualizar saldo:', updateError.message)
       }
       fetchAllData()
     }
@@ -141,19 +146,18 @@ export default function Home() {
   // 4. Cálculos y Totales Financieros
   const totalIncomes = incomes.reduce((acc, curr) => acc + Number(curr.amount), 0)
   const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
-  const totalCardDebt = creditCards.reduce((acc, curr) => acc + Number(curr.current_balance || 0), 0)
+  const totalCardDebt = creditCards.reduce((acc, curr) => acc + Number(curr.current_balance ?? 0), 0)
 
   // Estimación mensual de cuotas de tarjeta (Monto / Cuotas)
   const totalMonthlyInstallments = transactions.reduce((acc, curr) => {
     const installments = Number(curr.installments) || 1
-    return acc + (Number(curr.amount) / installments)
+    return acc + Number(curr.amount) / installments
   }, 0)
 
   const totalMonthlyOutflow = totalExpenses + totalMonthlyInstallments
   const netBalance = totalIncomes - totalMonthlyOutflow
-  const commitmentRatio = totalIncomes > 0 
-    ? Math.min(100, Math.round((totalMonthlyOutflow / totalIncomes) * 100)) 
-    : 0
+  const commitmentRatio =
+    totalIncomes > 0 ? Math.min(100, Math.round((totalMonthlyOutflow / totalIncomes) * 100)) : 0
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
@@ -233,11 +237,13 @@ export default function Home() {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center justify-between">
               <span>Estado Financiero Neto (Mensual)</span>
-              <span className={`text-sm px-2.5 py-1 rounded-full font-semibold ${
-                netBalance >= 0 
-                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                  : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-              }`}>
+              <span
+                className={`text-sm px-2.5 py-1 rounded-full font-semibold ${
+                  netBalance >= 0
+                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                }`}
+              >
                 {netBalance >= 0 ? 'EN POSITIVO (SUPERÁVIT)' : 'EN NEGATIVO (DÉFICIT)'}
               </span>
             </CardTitle>
@@ -259,22 +265,29 @@ export default function Home() {
                   -${totalMonthlyOutflow.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
                 </p>
                 <span className="text-[10px] text-muted-foreground block mt-0.5">
-                  (Fijos: ${totalExpenses.toLocaleString('es-CO')} \vert{} Cuotas:${totalMonthlyInstallments.toLocaleString('es-CO')})
+                  (Fijos: ${totalExpenses.toLocaleString('es-CO')} · Cuotas: $
+                  {totalMonthlyInstallments.toLocaleString('es-CO')})
                 </span>
               </div>
 
               {/* Balance Disponible */}
-              <div className={`p-3 rounded-lg border ${
-                netBalance >= 0 
-                  ? 'bg-purple-500/5 border-purple-500/20' 
-                  : 'bg-rose-500/10 border-rose-500/30'
-              }`}>
+              <div
+                className={`p-3 rounded-lg border ${
+                  netBalance >= 0
+                    ? 'bg-purple-500/5 border-purple-500/20'
+                    : 'bg-rose-500/10 border-rose-500/30'
+                }`}
+              >
                 <p className="text-xs text-muted-foreground font-medium">
                   {netBalance >= 0 ? 'Dinero Libre Estimado' : 'Faltante Estimado'}
                 </p>
-                <p className={`text-2xl font-black mt-1 ${
-                  netBalance >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-rose-600 dark:text-rose-400'
-                }`}>
+                <p
+                  className={`text-2xl font-black mt-1 ${
+                    netBalance >= 0
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
                   ${netBalance.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
                 </p>
               </div>
@@ -289,9 +302,13 @@ export default function Home() {
                 </span>
               </div>
               <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={`h-full transition-all duration-500 ${
-                    commitmentRatio > 80 ? 'bg-rose-500' : commitmentRatio > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                    commitmentRatio > 80
+                      ? 'bg-rose-500'
+                      : commitmentRatio > 50
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
                   }`}
                   style={{ width: `${Math.min(100, commitmentRatio)}%` }}
                 />
@@ -331,24 +348,30 @@ export default function Home() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {creditCards.map((card) => (
-                      <TableRow key={card.id}>
-                        <TableCell className="font-medium">{card.name}</TableCell>
-                        <TableCell>
-                          <span className="text-rose-600 font-semibold">
-                            ${Number(card.current_balance || 0).toLocaleString('es-CO')}
-                          </span>
-                          <span className="text-xs text-muted-foreground block">
-                            de ${Number(card.total_limit).toLocaleString('es-CO')}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteCard(card.id)}>
-                            <Trash2 className="h-4 w-4 text-rose-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {creditCards.map((card) => {
+                      const cardName = card.name ?? card.card_alias ?? card.bank_name ?? 'Tarjeta'
+                      const cardBal = card.current_balance ?? 0
+                      const totalLimit = card.total_limit ?? 0
+
+                      return (
+                        <TableRow key={card.id}>
+                          <TableCell className="font-medium">{cardName}</TableCell>
+                          <TableCell>
+                            <span className="text-rose-600 font-semibold">
+                              ${Number(cardBal).toLocaleString('es-CO')}
+                            </span>
+                            <span className="text-xs text-muted-foreground block">
+                              de ${Number(totalLimit).toLocaleString('es-CO')}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCard(card.id)}>
+                              <Trash2 className="h-4 w-4 text-rose-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -381,7 +404,9 @@ export default function Home() {
                     {transactions.map((tx) => (
                       <TableRow key={tx.id}>
                         <TableCell className="font-medium">{tx.description}</TableCell>
-                        <TableCell>{tx.installments} {tx.installments === 1 ? 'cuota' : 'cuotas'}</TableCell>
+                        <TableCell>
+                          {tx.installments} {tx.installments === 1 ? 'cuota' : 'cuotas'}
+                        </TableCell>
                         <TableCell className="text-right text-purple-600 font-semibold">
                           ${Number(tx.amount).toLocaleString('es-CO', { minimumFractionDigits: 2 })}
                         </TableCell>
@@ -489,11 +514,7 @@ export default function Home() {
         </div>
 
         {/* Módulo de Deudas y Préstamos */}
-        <DebtsModule
-          debts={debts}
-          onDebtUpdated={fetchAllData}
-          currentProfile={activeProfile}
-        />
+        <DebtsModule debts={debts} onDebtUpdated={fetchAllData} currentProfile={activeProfile} />
       </main>
     </div>
   )

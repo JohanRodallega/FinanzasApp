@@ -26,6 +26,12 @@ interface AddIncomeModalProps {
   currentProfile: 'me' | 'partner' | 'shared'
 }
 
+const frequencyItems = [
+  { value: 'mensual', label: 'Mensual' },
+  { value: 'quincenal', label: 'Quincenal' },
+  { value: 'unico', label: 'Único / Ocasional' },
+]
+
 export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
   onIncomeAdded,
   currentProfile,
@@ -47,13 +53,15 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
 
     setLoading(true)
 
-    const profileId = currentProfile === 'partner' 
-      ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' 
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+    const profileId =
+      currentProfile === 'partner'
+        ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'
+        : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 
     const { error } = await supabase.from('incomes').insert([
       {
         profile_id: profileId,
+        profile: currentProfile,
         title,
         amount: parseFloat(amount),
         frequency,
@@ -76,12 +84,13 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          <span>Agregar Ingreso</span>
-        </Button>
+      <DialogTrigger
+        render={<Button type="button" className="flex items-center gap-2" />}
+      >
+        <Plus className="h-4 w-4" />
+        <span>Agregar Ingreso</span>
       </DialogTrigger>
+
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Nuevo Ingreso</DialogTitle>
@@ -114,8 +123,11 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="frequency">Frecuencia</Label>
             <Select
+              items={frequencyItems}
               value={frequency}
-              onValueChange={(val: 'mensual' | 'quincenal' | 'unico') => setFrequency(val)}
+              onValueChange={(val) => {
+                if (val) setFrequency(val)
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona frecuencia" />

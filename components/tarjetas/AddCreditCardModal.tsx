@@ -37,13 +37,15 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({
 
     setLoading(true)
 
-    const profileId = currentProfile === 'partner' 
-      ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' 
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+    const profileId =
+      currentProfile === 'partner'
+        ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'
+        : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 
     const { error } = await supabase.from('credit_cards').insert([
       {
         profile_id: profileId,
+        profile: currentProfile,
         name,
         total_limit: parseFloat(totalLimit),
         current_balance: currentBalance ? parseFloat(currentBalance) : 0,
@@ -68,11 +70,17 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950">
-          <Plus className="h-4 w-4" />
-          <span>Agregar Tarjeta</span>
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+          />
+        }
+      >
+        <Plus className="h-4 w-4" />
+        <span>Agregar Tarjeta</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

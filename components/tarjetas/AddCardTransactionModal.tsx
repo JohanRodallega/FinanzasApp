@@ -27,6 +27,9 @@ interface AddCardTransactionModalProps {
   onTransactionAdded: () => void
 }
 
+const getCardName = (card: CreditCard) =>
+  card.name ?? card.card_alias ?? card.bank_name ?? 'Tarjeta'
+
 export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = ({
   cards,
   onTransactionAdded,
@@ -38,9 +41,14 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
   const [amount, setAmount] = useState('')
   const [installments, setInstallments] = useState('1')
 
+  const cardItems = cards.map((c) => ({ value: c.id, label: getCardName(c) }))
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCardId || !description || !amount) return
+
+    const selectedCard = cards.find((c) => c.id === selectedCardId)
+    if (!selectedCard) return
 
     setLoading(true)
     const numAmount = parseFloat(amount)
@@ -49,6 +57,7 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
     const { error: txError } = await supabase.from('card_transactions').insert([
       {
         card_id: selectedCardId,
+        profile: selectedCard.profile,
         description,
         amount: numAmount,
         installments: parseInt(installments, 10),
@@ -62,11 +71,9 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
       return
     }
 
-    // 2. Obtener el saldo actual de la tarjeta seleccionada
-    const selectedCard = cards.find((c) => c.id === selectedCardId)
-    const currentBalance = Number(selectedCard?.current_balance || 0)
+    // 2. Actualizar el saldo total acumulado de la tarjeta
+    const currentBalance = Number(selectedCard.current_balance || 0)
 
-    // 3. Actualizar el saldo total acumulado de la tarjeta
     const { error: cardError } = await supabase
       .from('credit_cards')
       .update({ current_balance: currentBalance + numAmount })
@@ -87,15 +94,18 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          disabled={cards.length === 0}
-          className="flex items-center gap-2 border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          <span>Registrar Compra</span>
-        </Button>
+      <DialogTrigger
+        disabled={cards.length === 0}
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="flex items-center gap-2 border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
+          />
+        }
+      >
+        <ShoppingBag className="h-4 w-4" />
+        <span>Registrar Compra</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -104,14 +114,19 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="card">Seleccionar Tarjeta</Label>
-            <Select value={selectedCardId} onValueChange={setSelectedCardId}>
+            <Select
+              items={cardItems}
+              value={selectedCardId || null}
+              onValueChange={(v) => setSelectedCardId(v ?? '')}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Elige una tarjeta" />
               </SelectTrigger>
               <SelectContent>
                 {cards.map((card) => (
                   <SelectItem key={card.id} value={card.id}>
-                    {card.name} (Cupo disp: ${(Number(card.total_limit) - Number(card.current_balance || 0)).toLocaleString('es-CO')})
+                    {getCardName(card)} (Cupo disp: $
+                    {(Number(card.total_limit) - Number(card.current_balance || 0)).toLocaleString('es-CO')})
                   </SelectItem>
                 ))}
               </SelectContent>

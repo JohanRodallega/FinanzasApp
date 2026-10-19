@@ -75,7 +75,7 @@ export const FinancialCharts: React.FC<FinancialChartsProps> = ({
                 tickLine={false}
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), 'Monto']}
+                formatter={(value) => [formatCurrency(Number(value ?? 0)), 'Monto']}
                 contentStyle={{ borderRadius: '8px' }}
               />
               <Bar dataKey="monto" radius={[8, 8, 0, 0]} />
@@ -112,7 +112,7 @@ export const FinancialCharts: React.FC<FinancialChartsProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [formatCurrency(value), 'Monto']} />
+                <Tooltip formatter={(value) => [formatCurrency(Number(value ?? 0)), 'Monto']} />
                 <Legend verticalAlign="bottom" height={36} />
               </PieChart>
             </ResponsiveContainer>
