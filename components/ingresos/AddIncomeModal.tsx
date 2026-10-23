@@ -19,11 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
 import { Plus } from 'lucide-react'
 
 interface AddIncomeModalProps {
   onIncomeAdded: () => void
-  currentProfile: 'me' | 'partner' | 'shared'
+  householdId: string | null
 }
 
 const frequencyItems = [
@@ -32,10 +33,7 @@ const frequencyItems = [
   { value: 'unico', label: 'Único / Ocasional' },
 ]
 
-export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
-  onIncomeAdded,
-  currentProfile,
-}) => {
+export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, householdId }) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
@@ -53,15 +51,17 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
 
     setLoading(true)
 
-    const profileId =
-      currentProfile === 'partner'
-        ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'
-        : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+    const owner = await ownerFields(householdId)
+    if (!owner) {
+      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('incomes').insert([
       {
-        profile_id: profileId,
-        profile: currentProfile,
+        ...owner,
+        profile_id: owner.user_id,
         title,
         amount: parseFloat(amount),
         frequency,
@@ -84,9 +84,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<Button type="button" className="flex items-center gap-2" />}
-      >
+      <DialogTrigger render={<Button type="button" className="flex items-center gap-2" />}>
         <Plus className="h-4 w-4" />
         <span>Agregar Ingreso</span>
       </DialogTrigger>

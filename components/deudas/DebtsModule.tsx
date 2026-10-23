@@ -7,15 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Debt } from '@/types/finance'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
 import { PlusCircle, Trash2, Banknote } from 'lucide-react'
 
 interface DebtsModuleProps {
   debts: Debt[]
   onDebtUpdated: () => void
-  currentProfile: 'me' | 'partner' | 'shared'
+  householdId: string | null
 }
 
-export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, currentProfile }) => {
+export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, householdId }) => {
   const [title, setTitle] = useState('')
   const [totalAmount, setTotalAmount] = useState('')
   const [creditor, setCreditor] = useState('')
@@ -26,22 +27,32 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
     e.preventDefault()
     if (!title || !totalAmount) return
 
+    const owner = await ownerFields(householdId)
+    if (!owner) {
+      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      return
+    }
+
     const { error } = await supabase.from('debts').insert([
       {
+        ...owner,
         title,
         total_amount: parseFloat(totalAmount),
         paid_amount: 0,
         creditor,
-        profile: currentProfile,
       },
     ])
 
-    if (!error) {
-      setTitle('')
-      setTotalAmount('')
-      setCreditor('')
-      onDebtUpdated()
+    if (error) {
+      console.error('Error al agregar deuda:', error.message)
+      alert('Error al guardar la deuda: ' + error.message)
+      return
     }
+
+    setTitle('')
+    setTotalAmount('')
+    setCreditor('')
+    onDebtUpdated()
   }
 
   // Registrar un abono a una deuda
@@ -113,7 +124,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
         <CardContent>
           {debts.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No tienes deudas o préstamos registrados en este perfil.
+              No tienes deudas o préstamos registrados en esta vista.
             </p>
           ) : (
             <Table>
@@ -131,7 +142,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
                   const paid = Number(debt.paid_amount || 0)
                   const total = Number(debt.total_amount)
                   const pending = total - paid
-                  const progressPercentage = Math.min(100, Math.round((paid / total) * 100))
+                  const progressPercentage = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
 
                   return (
                     <TableRow key={debt.id}>

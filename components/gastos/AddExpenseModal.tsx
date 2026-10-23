@@ -19,17 +19,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
 import { Plus } from 'lucide-react'
 
 interface AddExpenseModalProps {
   onExpenseAdded: () => void
-  currentProfile: 'me' | 'partner' | 'shared'
+  householdId: string | null
 }
 
-export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
-  onExpenseAdded,
-  currentProfile,
-}) => {
+const categoryItems = [
+  { value: 'Vivienda', label: 'Vivienda / Arriendo' },
+  { value: 'Servicios', label: 'Servicios Públicos' },
+  { value: 'Suscripciones', label: 'Suscripciones / Streaming' },
+  { value: 'Educación', label: 'Educación' },
+  { value: 'Otros', label: 'Otros' },
+]
+
+export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded, householdId }) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
@@ -43,13 +49,18 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
     setLoading(true)
 
-    const profileId = currentProfile === 'partner' 
-      ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' 
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+    const owner = await ownerFields(householdId)
+    if (!owner) {
+      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('basic_expenses').insert([
       {
-        profile_id: profileId,
+        ...owner,
+        profile_id: owner.user_id,
+        is_shared: householdId !== null,
         title,
         amount: parseFloat(amount),
         category,
@@ -72,13 +83,19 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button variant="outline" className="flex items-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950" type="button">
-          <Plus className="h-4 w-4" />
-          <span>Agregar Gasto Fijo</span>
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="flex items-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+          />
+        }
+      >
+        <Plus className="h-4 w-4" />
+        <span>Agregar Gasto Fijo</span>
       </DialogTrigger>
-      
+
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Gasto Fijo / Básico</DialogTitle>
@@ -111,11 +128,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="category">Categoría</Label>
             <Select
+              items={categoryItems}
               value={category}
-              onValueChange={(val: string | null) => {
-                if (val !== null) {
-                  setCategory(val)
-                }
+              onValueChange={(val) => {
+                if (val) setCategory(val)
               }}
             >
               <SelectTrigger>

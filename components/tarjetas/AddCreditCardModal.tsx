@@ -12,17 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
 import { Plus } from 'lucide-react'
 
 interface AddCreditCardModalProps {
   onCardAdded: () => void
-  currentProfile: 'me' | 'partner' | 'shared'
+  householdId: string | null
 }
 
-export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({
-  onCardAdded,
-  currentProfile,
-}) => {
+export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAdded, householdId }) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
@@ -37,15 +35,17 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({
 
     setLoading(true)
 
-    const profileId =
-      currentProfile === 'partner'
-        ? 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'
-        : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+    const owner = await ownerFields(householdId)
+    if (!owner) {
+      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('credit_cards').insert([
       {
-        profile_id: profileId,
-        profile: currentProfile,
+        ...owner,
+        profile_id: owner.user_id,
         name,
         total_limit: parseFloat(totalLimit),
         current_balance: currentBalance ? parseFloat(currentBalance) : 0,

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
 import { CreditCard } from '@/types/finance'
 import { ShoppingBag } from 'lucide-react'
 
@@ -53,11 +54,19 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
     setLoading(true)
     const numAmount = parseFloat(amount)
 
+    // La compra pertenece al mismo hogar (o a lo personal) que la tarjeta
+    const owner = await ownerFields(selectedCard.household_id ?? null)
+    if (!owner) {
+      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      setLoading(false)
+      return
+    }
+
     // 1. Guardar la compra en la tabla card_transactions
     const { error: txError } = await supabase.from('card_transactions').insert([
       {
+        ...owner,
         card_id: selectedCardId,
-        profile: selectedCard.profile,
         description,
         amount: numAmount,
         installments: parseInt(installments, 10),

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Navbar } from '@/components/shared/Navbar'
+import { AuthGate } from '@/components/shared/AuthGate'
 import { AddIncomeModal } from '@/components/ingresos/AddIncomeModal'
 import { AddExpenseModal } from '@/components/gastos/AddExpenseModal'
 import { AddCreditCardModal } from '@/components/tarjetas/AddCreditCardModal'
@@ -18,12 +19,24 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
-import { Income, BasicExpense, CreditCard, CardTransaction, Debt } from '@/types/finance'
+import {
+  Income,
+  BasicExpense,
+  CreditCard,
+  CardTransaction,
+  Debt,
+  Household,
+} from '@/types/finance'
 import { DollarSign, CreditCard as CardIcon, Receipt, TrendingDown, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function Home() {
-  const [activeProfile, setActiveProfile] = useState<'me' | 'partner' | 'shared'>('me')
+function Dashboard() {
+  // Usuario autenticado
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null)
+
+  // Vista activa: 'personal' o el id de un hogar
+  const [scope, setScope] = useState<string>('personal')
+  const [households, setHouseholds] = useState<Household[]>([])
 
   // 1. Declaración de Estados
   const [incomes, setIncomes] = useState<Income[]>([])
@@ -39,63 +52,98 @@ export default function Home() {
   const [loadingTransactions, setLoadingTransactions] = useState(true)
 
   const [debts, setDebts] = useState<Debt[]>([])
-  const [loadingDebts, setLoadingDebts] = useState(true)
 
-  // 2. Funciones de Carga de Datos con Filtro de Perfil
-  const fetchIncomes = useCallback(async () => {
-    setLoadingIncomes(true)
+  const userId = user?.id
+  const householdId = scope === 'personal' ? null : scope
+  const scopeLabel =
+    scope === 'personal' ? 'Personal' : (households.find((h) => h.id === scope)?.name ?? 'Hogar')
+
+  // 2. Usuario y hogares
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user
+      if (!u) return
+      const metaName = u.user_metadata?.name as string | undefined
+      const name = metaName?.trim() || u.email?.split('@')[0] || 'Usuario'
+      setUser({ id: u.id, name })
+    })
+  }, [])
+
+  const fetchHouseholds = useCallback(async () => {
     const { data } = await supabase
-      .from('incomes')
-      .select('*')
-      .eq('profile', activeProfile)
-      .order('created_at', { ascending: false })
+      .from('households')
+      .select('id, name, invite_code')
+      .order('created_at', { ascending: true })
+    if (data) setHouseholds(data as Household[])
+  }, [])
+
+  useEffect(() => {
+    if (userId) fetchHouseholds()
+  }, [userId, fetchHouseholds])
+
+  const handleHouseholdsChanged = async (newHouseholdId?: string) => {
+    await fetchHouseholds()
+    if (newHouseholdId) setScope(newHouseholdId)
+  }
+
+  // 3. Funciones de Carga de Datos según la vista (personal u hogar)
+  const fetchIncomes = useCallback(async () => {
+    if (!userId) return
+    setLoadingIncomes(true)
+    const base = supabase.from('incomes').select('*')
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    ).order('created_at', { ascending: false })
     if (data) setIncomes(data as Income[])
     setLoadingIncomes(false)
-  }, [activeProfile])
+  }, [scope, userId])
 
   const fetchExpenses = useCallback(async () => {
+    if (!userId) return
     setLoadingExpenses(true)
-    const { data } = await supabase
-      .from('basic_expenses')
-      .select('*')
-      .eq('profile', activeProfile)
-      .order('created_at', { ascending: false })
+    const base = supabase.from('basic_expenses').select('*')
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    ).order('created_at', { ascending: false })
     if (data) setExpenses(data as BasicExpense[])
     setLoadingExpenses(false)
-  }, [activeProfile])
+  }, [scope, userId])
 
   const fetchCreditCards = useCallback(async () => {
+    if (!userId) return
     setLoadingCards(true)
-    const { data } = await supabase
-      .from('credit_cards')
-      .select('*')
-      .eq('profile', activeProfile)
-      .order('created_at', { ascending: false })
+    const base = supabase.from('credit_cards').select('*')
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    ).order('created_at', { ascending: false })
     if (data) setCreditCards(data as CreditCard[])
     setLoadingCards(false)
-  }, [activeProfile])
+  }, [scope, userId])
 
   const fetchTransactions = useCallback(async () => {
+    if (!userId) return
     setLoadingTransactions(true)
-    const { data } = await supabase
-      .from('card_transactions')
-      .select('*')
-      .eq('profile', activeProfile)
-      .order('created_at', { ascending: false })
+    const base = supabase.from('card_transactions').select('*')
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    ).order('created_at', { ascending: false })
     if (data) setTransactions(data as CardTransaction[])
     setLoadingTransactions(false)
-  }, [activeProfile])
+  }, [scope, userId])
 
   const fetchDebts = useCallback(async () => {
-    setLoadingDebts(true)
-    const { data } = await supabase
-      .from('debts')
-      .select('*')
-      .eq('profile', activeProfile)
-      .order('created_at', { ascending: false })
+    if (!userId) return
+    const base = supabase.from('debts').select('*')
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    ).order('created_at', { ascending: false })
     if (data) setDebts(data as Debt[])
-    setLoadingDebts(false)
-  }, [activeProfile])
+  }, [scope, userId])
 
   const fetchAllData = useCallback(() => {
     fetchIncomes()
@@ -107,9 +155,9 @@ export default function Home() {
 
   useEffect(() => {
     fetchAllData()
-  }, [fetchAllData, activeProfile])
+  }, [fetchAllData])
 
-  // 3. Funciones de Eliminación
+  // 4. Funciones de Eliminación
   const handleDeleteIncome = async (id: string) => {
     const { error } = await supabase.from('incomes').delete().eq('id', id)
     if (!error) fetchIncomes()
@@ -143,7 +191,7 @@ export default function Home() {
     }
   }
 
-  // 4. Cálculos y Totales Financieros
+  // 5. Cálculos y Totales Financieros
   const totalIncomes = incomes.reduce((acc, curr) => acc + Number(curr.amount), 0)
   const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
   const totalCardDebt = creditCards.reduce((acc, curr) => acc + Number(curr.current_balance ?? 0), 0)
@@ -161,20 +209,27 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Navbar currentView={activeProfile} onViewChange={setActiveProfile} />
+      <Navbar
+        userName={user?.name ?? ''}
+        scope={scope}
+        households={households}
+        onScopeChange={setScope}
+        onHouseholdsChanged={handleHouseholdsChanged}
+      />
 
       <main className="container mx-auto p-4 md:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard de Finanzas</h1>
             <p className="text-sm text-muted-foreground">
-              Gestiona tus ingresos, gastos fijos, tarjetas y compras a cuotas.
+              Vista: <span className="font-semibold text-foreground">{scopeLabel}</span> · Gestiona tus
+              ingresos, gastos fijos, tarjetas y compras a cuotas.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <AddIncomeModal onIncomeAdded={fetchAllData} currentProfile={activeProfile} />
-            <AddExpenseModal onExpenseAdded={fetchAllData} currentProfile={activeProfile} />
-            <AddCreditCardModal onCardAdded={fetchAllData} currentProfile={activeProfile} />
+            <AddIncomeModal onIncomeAdded={fetchAllData} householdId={householdId} />
+            <AddExpenseModal onExpenseAdded={fetchAllData} householdId={householdId} />
+            <AddCreditCardModal onCardAdded={fetchAllData} householdId={householdId} />
             <AddCardTransactionModal cards={creditCards} onTransactionAdded={fetchAllData} />
           </div>
         </div>
@@ -514,8 +569,16 @@ export default function Home() {
         </div>
 
         {/* Módulo de Deudas y Préstamos */}
-        <DebtsModule debts={debts} onDebtUpdated={fetchAllData} currentProfile={activeProfile} />
+        <DebtsModule debts={debts} onDebtUpdated={fetchAllData} householdId={householdId} />
       </main>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <AuthGate>
+      <Dashboard />
+    </AuthGate>
   )
 }

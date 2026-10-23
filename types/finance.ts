@@ -1,5 +1,12 @@
 export type ProfileOwner = 'me' | 'partner' | 'shared'
 
+export interface Household {
+  id: string
+  name: string
+  invite_code: string
+  created_at?: string
+}
+
 export interface Profile {
   id: string
   name: string
@@ -10,8 +17,10 @@ export interface Profile {
 
 export interface Income {
   id: string
+  user_id?: string | null
+  household_id?: string | null
   profile_id?: string
-  profile: ProfileOwner
+  profile?: ProfileOwner | null
   title: string
   amount: number
   frequency: 'mensual' | 'quincenal' | 'unico'
@@ -21,8 +30,10 @@ export interface Income {
 
 export interface BasicExpense {
   id: string
+  user_id?: string | null
+  household_id?: string | null
   profile_id?: string
-  profile: ProfileOwner
+  profile?: ProfileOwner | null
   title: string
   amount: number
   due_date: number
@@ -34,8 +45,10 @@ export interface BasicExpense {
 
 export interface CreditCard {
   id: string
+  user_id?: string | null
+  household_id?: string | null
   profile_id?: string
-  profile: ProfileOwner
+  profile?: ProfileOwner | null
   name?: string | null
   bank_name?: string | null
   card_alias?: string | null
@@ -51,7 +64,9 @@ export interface CreditCard {
 export interface CardTransaction {
   id: string
   card_id: string
-  profile: ProfileOwner
+  user_id?: string | null
+  household_id?: string | null
+  profile?: ProfileOwner | null
   description: string
   amount: number
   installments: number
@@ -60,7 +75,9 @@ export interface CardTransaction {
 
 export interface Debt {
   id: string
-  profile: ProfileOwner
+  user_id?: string | null
+  household_id?: string | null
+  profile?: ProfileOwner | null
   title: string
   total_amount: number
   paid_amount: number
