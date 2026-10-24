@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { ownerFields } from '@/lib/scope'
-import { Plus } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 
 interface AddIncomeModalProps {
   onIncomeAdded: () => void
@@ -84,12 +84,19 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" className="flex items-center gap-2" />}>
-        <Plus className="h-4 w-4" />
-        <span>Agregar Ingreso</span>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            className="min-h-11 w-full justify-center gap-2 sm:min-h-0 sm:w-auto"
+          />
+        }
+      >
+        <TrendingUp className="h-4 w-4" />
+        <span>Ingreso</span>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Nuevo Ingreso</DialogTitle>
         </DialogHeader>
@@ -110,6 +117,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="0.00"
               value={amount}

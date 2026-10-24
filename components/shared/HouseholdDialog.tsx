@@ -74,12 +74,22 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="flex items-center gap-2" />}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label="Hogares"
+            className="flex items-center gap-2 px-2.5 sm:px-3"
+          />
+        }
+      >
         <Users className="h-4 w-4" />
-        <span>Hogares</span>
+        <span className="hidden sm:inline">Hogares</span>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Hogares compartidos</DialogTitle>
         </DialogHeader>
@@ -100,12 +110,19 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
                     className="flex items-center justify-between gap-2 rounded-md border border-border p-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{h.name}</p>
+                      <p className="truncate text-sm font-medium">{h.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Código de invitación: <span className="font-mono">{h.invite_code}</span>
+                        Código: <span className="font-mono">{h.invite_code}</span>
                       </p>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => handleCopy(h)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Copiar código"
+                      className="h-10 w-10 shrink-0"
+                      onClick={() => handleCopy(h)}
+                    >
                       {copiedId === h.id ? (
                         <Check className="h-4 w-4 text-emerald-500" />
                       ) : (
@@ -127,8 +144,9 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
                 placeholder="Ej: Casa, Pareja, Familia"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
+                className="h-10"
               />
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="h-10">
                 Crear
               </Button>
             </div>
@@ -143,8 +161,9 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
                 placeholder="Código de invitación"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
+                className="h-10"
               />
-              <Button type="submit" variant="outline" disabled={loading}>
+              <Button type="submit" variant="outline" disabled={loading} className="h-10">
                 Unirme
               </Button>
             </div>

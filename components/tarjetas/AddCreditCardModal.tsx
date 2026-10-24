@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 import { ownerFields } from '@/lib/scope'
-import { Plus } from 'lucide-react'
+import { CreditCard } from 'lucide-react'
 
 interface AddCreditCardModalProps {
   onCardAdded: () => void
@@ -75,14 +75,14 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
           <Button
             type="button"
             variant="outline"
-            className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+            className="min-h-11 w-full justify-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 sm:min-h-0 sm:w-auto"
           />
         }
       >
-        <Plus className="h-4 w-4" />
-        <span>Agregar Tarjeta</span>
+        <CreditCard className="h-4 w-4" />
+        <span>Tarjeta</span>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Nueva Tarjeta de Crédito</DialogTitle>
         </DialogHeader>
@@ -98,12 +98,13 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="totalLimit">Cupo Total ($)</Label>
               <Input
                 id="totalLimit"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={totalLimit}
@@ -117,6 +118,7 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
               <Input
                 id="currentBalance"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={currentBalance}
@@ -131,6 +133,7 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
               <Input
                 id="closingDay"
                 type="number"
+                inputMode="numeric"
                 min="1"
                 max="31"
                 placeholder="Ej: 15"
@@ -145,6 +148,7 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
               <Input
                 id="dueDay"
                 type="number"
+                inputMode="numeric"
                 min="1"
                 max="31"
                 placeholder="Ej: 5"

@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { ownerFields } from '@/lib/scope'
+import { fmt } from '@/lib/format'
 import { CreditCard } from '@/types/finance'
 import { ShoppingBag } from 'lucide-react'
 
@@ -109,14 +110,14 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
           <Button
             type="button"
             variant="outline"
-            className="flex items-center gap-2 border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950"
+            className="min-h-11 w-full justify-center gap-2 border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950 sm:min-h-0 sm:w-auto"
           />
         }
       >
         <ShoppingBag className="h-4 w-4" />
-        <span>Registrar Compra</span>
+        <span>Compra</span>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Compra con Tarjeta</DialogTitle>
         </DialogHeader>
@@ -134,8 +135,7 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
               <SelectContent>
                 {cards.map((card) => (
                   <SelectItem key={card.id} value={card.id}>
-                    {getCardName(card)} (Cupo disp: $
-                    {(Number(card.total_limit) - Number(card.current_balance || 0)).toLocaleString('es-CO')})
+                    {getCardName(card)} (Cupo disp: {fmt(Number(card.total_limit) - Number(card.current_balance || 0))})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -153,12 +153,13 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="amount">Monto Total ($)</Label>
               <Input
                 id="amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={amount}
@@ -172,6 +173,7 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
               <Input
                 id="installments"
                 type="number"
+                inputMode="numeric"
                 min="1"
                 max="48"
                 placeholder="1"
@@ -183,8 +185,8 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
           </div>
 
           {amount && parseInt(installments, 10) > 1 && (
-            <p className="text-xs text-muted-foreground bg-purple-50 dark:bg-purple-950/50 p-2 rounded border border-purple-200">
-              💡 Cuota estimada aprox: <strong>${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('es-CO', { maximumFractionDigits: 0 })}/mes</strong> (sin contar intereses).
+            <p className="rounded border border-purple-200 bg-purple-50 p-2 text-xs text-muted-foreground dark:bg-purple-950/50">
+              💡 Cuota estimada aprox: <strong>{fmt(parseFloat(amount) / parseInt(installments, 10))}/mes</strong> (sin contar intereses).
             </p>
           )}
 

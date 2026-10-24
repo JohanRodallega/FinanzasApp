@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { ownerFields } from '@/lib/scope'
-import { Plus } from 'lucide-react'
+import { Receipt } from 'lucide-react'
 
 interface AddExpenseModalProps {
   onExpenseAdded: () => void
@@ -88,15 +88,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded
           <Button
             type="button"
             variant="outline"
-            className="flex items-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+            className="min-h-11 w-full justify-center gap-2 border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950 sm:min-h-0 sm:w-auto"
           />
         }
       >
-        <Plus className="h-4 w-4" />
-        <span>Agregar Gasto Fijo</span>
+        <Receipt className="h-4 w-4" />
+        <span>Gasto fijo</span>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Registrar Gasto Fijo / Básico</DialogTitle>
         </DialogHeader>
@@ -117,6 +117,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="0.00"
               value={amount}
@@ -152,6 +153,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded
             <Input
               id="dueDate"
               type="number"
+              inputMode="numeric"
               min="1"
               max="31"
               placeholder="Ej: 5 (día 5 de cada mes)"

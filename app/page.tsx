@@ -1,8 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Navbar } from '@/components/shared/Navbar'
+import Link from 'next/link'
 import { AuthGate } from '@/components/shared/AuthGate'
+import { AppShell, useApp } from '@/components/shared/AppShell'
+import { ListRow } from '@/components/shared/ListRow'
+import { SegmentBar } from '@/components/shared/SegmentBar'
+import { ExpenseRow } from '@/components/gastos/ExpenseRow'
+import { EditExpenseModal } from '@/components/gastos/EditExpenseModal'
 import { AddIncomeModal } from '@/components/ingresos/AddIncomeModal'
 import { AddExpenseModal } from '@/components/gastos/AddExpenseModal'
 import { AddCreditCardModal } from '@/components/tarjetas/AddCreditCardModal'
@@ -10,40 +15,69 @@ import { AddCardTransactionModal } from '@/components/tarjetas/AddCardTransactio
 import { DebtsModule } from '@/components/deudas/DebtsModule'
 import { FinancialCharts } from '@/components/dashboard/FinancialCharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
+import { ownerFields } from '@/lib/scope'
+import { fmt } from '@/lib/format'
+import { currentMonthIndex, monthKey, monthLabel, monthLongName } from '@/lib/dates'
+import {
+  incomeForMonth,
+  installmentsForMonth,
+  expenseLinesForMonth,
+  type ExpenseLine,
+} from '@/lib/finance-calc'
 import {
   Income,
   BasicExpense,
+  ExpenseMonth,
   CreditCard,
   CardTransaction,
   Debt,
-  Household,
 } from '@/types/finance'
-import { DollarSign, CreditCard as CardIcon, Receipt, TrendingDown, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import {
+  Wallet,
+  CreditCard as CardIcon,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
+  ShoppingBag,
+  PiggyBank,
+  Terminal,
+  CalendarDays,
+  ArrowRight,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
+const frequencyLabel: Record<string, string> = {
+  mensual: 'Mensual',
+  quincenal: 'Quincenal (2 pagos al mes)',
+  unico: 'Único / Ocasional',
+}
+
+function EmptyState({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 text-center">
+      <Icon className="h-6 w-6 text-muted-foreground/60" />
+      <p className="text-sm text-muted-foreground">{text}</p>
+    </div>
+  )
+}
 
 function Dashboard() {
-  // Usuario autenticado
-  const [user, setUser] = useState<{ id: string; name: string } | null>(null)
+  const { user, scope, householdId } = useApp()
+  const userId = user.id
 
-  // Vista activa: 'personal' o el id de un hogar
-  const [scope, setScope] = useState<string>('personal')
-  const [households, setHouseholds] = useState<Household[]>([])
+  // Mes actual
+  const mi = currentMonthIndex()
+  const miKey = monthKey(mi)
 
-  // 1. Declaración de Estados
+  // 1. Estados
   const [incomes, setIncomes] = useState<Income[]>([])
   const [loadingIncomes, setLoadingIncomes] = useState(true)
 
   const [expenses, setExpenses] = useState<BasicExpense[]>([])
+  const [expenseMonths, setExpenseMonths] = useState<ExpenseMonth[]>([])
   const [loadingExpenses, setLoadingExpenses] = useState(true)
+  const [editingLine, setEditingLine] = useState<ExpenseLine | null>(null)
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>([])
   const [loadingCards, setLoadingCards] = useState(true)
@@ -53,42 +87,8 @@ function Dashboard() {
 
   const [debts, setDebts] = useState<Debt[]>([])
 
-  const userId = user?.id
-  const householdId = scope === 'personal' ? null : scope
-  const scopeLabel =
-    scope === 'personal' ? 'Personal' : (households.find((h) => h.id === scope)?.name ?? 'Hogar')
-
-  // 2. Usuario y hogares
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const u = data.user
-      if (!u) return
-      const metaName = u.user_metadata?.name as string | undefined
-      const name = metaName?.trim() || u.email?.split('@')[0] || 'Usuario'
-      setUser({ id: u.id, name })
-    })
-  }, [])
-
-  const fetchHouseholds = useCallback(async () => {
-    const { data } = await supabase
-      .from('households')
-      .select('id, name, invite_code')
-      .order('created_at', { ascending: true })
-    if (data) setHouseholds(data as Household[])
-  }, [])
-
-  useEffect(() => {
-    if (userId) fetchHouseholds()
-  }, [userId, fetchHouseholds])
-
-  const handleHouseholdsChanged = async (newHouseholdId?: string) => {
-    await fetchHouseholds()
-    if (newHouseholdId) setScope(newHouseholdId)
-  }
-
-  // 3. Funciones de Carga de Datos según la vista (personal u hogar)
+  // 2. Carga de datos según la vista (personal u hogar)
   const fetchIncomes = useCallback(async () => {
-    if (!userId) return
     setLoadingIncomes(true)
     const base = supabase.from('incomes').select('*')
     const { data } = await (scope === 'personal'
@@ -100,7 +100,6 @@ function Dashboard() {
   }, [scope, userId])
 
   const fetchExpenses = useCallback(async () => {
-    if (!userId) return
     setLoadingExpenses(true)
     const base = supabase.from('basic_expenses').select('*')
     const { data } = await (scope === 'personal'
@@ -111,8 +110,16 @@ function Dashboard() {
     setLoadingExpenses(false)
   }, [scope, userId])
 
+  const fetchExpenseMonths = useCallback(async () => {
+    const base = supabase.from('expense_months').select('*').eq('month', miKey)
+    const { data } = await (scope === 'personal'
+      ? base.eq('user_id', userId).is('household_id', null)
+      : base.eq('household_id', scope)
+    )
+    if (data) setExpenseMonths(data as ExpenseMonth[])
+  }, [scope, userId, miKey])
+
   const fetchCreditCards = useCallback(async () => {
-    if (!userId) return
     setLoadingCards(true)
     const base = supabase.from('credit_cards').select('*')
     const { data } = await (scope === 'personal'
@@ -124,7 +131,6 @@ function Dashboard() {
   }, [scope, userId])
 
   const fetchTransactions = useCallback(async () => {
-    if (!userId) return
     setLoadingTransactions(true)
     const base = supabase.from('card_transactions').select('*')
     const { data } = await (scope === 'personal'
@@ -136,7 +142,6 @@ function Dashboard() {
   }, [scope, userId])
 
   const fetchDebts = useCallback(async () => {
-    if (!userId) return
     const base = supabase.from('debts').select('*')
     const { data } = await (scope === 'personal'
       ? base.eq('user_id', userId).is('household_id', null)
@@ -148,32 +153,84 @@ function Dashboard() {
   const fetchAllData = useCallback(() => {
     fetchIncomes()
     fetchExpenses()
+    fetchExpenseMonths()
     fetchCreditCards()
     fetchTransactions()
     fetchDebts()
-  }, [fetchIncomes, fetchExpenses, fetchCreditCards, fetchTransactions, fetchDebts])
+  }, [fetchIncomes, fetchExpenses, fetchExpenseMonths, fetchCreditCards, fetchTransactions, fetchDebts])
 
   useEffect(() => {
     fetchAllData()
   }, [fetchAllData])
 
-  // 4. Funciones de Eliminación
+  // 3. Acciones sobre gastos fijos
+  const handleTogglePaid = async (line: ExpenseLine) => {
+    const next = !line.paid
+    const expenseId = line.expense.id
+
+    // Cambio inmediato en pantalla; luego se confirma con la base de datos
+    setExpenseMonths((prev) => [
+      ...prev.filter((r) => r.expense_id !== expenseId),
+      {
+        id: line.monthRow?.id ?? `tmp-${expenseId}`,
+        expense_id: expenseId,
+        month: miKey,
+        amount: line.amount,
+        paid: next,
+        paid_at: next ? new Date().toISOString() : null,
+      },
+    ])
+
+    const owner = await ownerFields(line.expense.household_id ?? null)
+    if (!owner) {
+      fetchExpenseMonths()
+      return
+    }
+
+    const { error } = await supabase.from('expense_months').upsert(
+      {
+        expense_id: expenseId,
+        month: miKey,
+        amount: line.amount,
+        paid: next,
+        paid_at: next ? new Date().toISOString() : null,
+        user_id: owner.user_id,
+        household_id: owner.household_id,
+      },
+      { onConflict: 'expense_id,month' }
+    )
+
+    if (error) {
+      console.error('Error al actualizar el pago:', error.message)
+      alert('No se pudo actualizar el gasto: ' + error.message)
+    }
+    fetchExpenseMonths()
+  }
+
+  // 4. Eliminaciones (con confirmación para evitar toques accidentales)
   const handleDeleteIncome = async (id: string) => {
+    if (!window.confirm('¿Eliminar este ingreso?')) return
     const { error } = await supabase.from('incomes').delete().eq('id', id)
     if (!error) fetchIncomes()
   }
 
   const handleDeleteExpense = async (id: string) => {
+    if (!window.confirm('¿Eliminar este gasto fijo? Se borra también su historial de pagos.')) return
     const { error } = await supabase.from('basic_expenses').delete().eq('id', id)
-    if (!error) fetchExpenses()
+    if (!error) {
+      fetchExpenses()
+      fetchExpenseMonths()
+    }
   }
 
   const handleDeleteCard = async (id: string) => {
+    if (!window.confirm('¿Eliminar esta tarjeta?')) return
     const { error } = await supabase.from('credit_cards').delete().eq('id', id)
     if (!error) fetchCreditCards()
   }
 
   const handleDeleteTransaction = async (tx: CardTransaction) => {
+    if (!window.confirm('¿Eliminar esta compra?')) return
     const { error } = await supabase.from('card_transactions').delete().eq('id', tx.id)
 
     if (!error) {
@@ -191,394 +248,365 @@ function Dashboard() {
     }
   }
 
-  // 5. Cálculos y Totales Financieros
-  const totalIncomes = incomes.reduce((acc, curr) => acc + Number(curr.amount), 0)
-  const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
-  const totalCardDebt = creditCards.reduce((acc, curr) => acc + Number(curr.current_balance ?? 0), 0)
+  // 5. Cálculos del mes
+  const expenseLines = expenseLinesForMonth(expenses, expenseMonths, mi).sort(
+    (a, b) => Number(a.expense.due_date) - Number(b.expense.due_date)
+  )
+  const totalExpenses = expenseLines.reduce((acc, l) => acc + l.amount, 0)
+  const paidExpenses = expenseLines.filter((l) => l.paid).reduce((acc, l) => acc + l.amount, 0)
+  const pendingExpenses = totalExpenses - paidExpenses
+  const paidCount = expenseLines.filter((l) => l.paid).length
+  const paidPercent = expenseLines.length > 0 ? Math.round((paidCount / expenseLines.length) * 100) : 0
 
-  // Estimación mensual de cuotas de tarjeta (Monto / Cuotas)
-  const totalMonthlyInstallments = transactions.reduce((acc, curr) => {
-    const installments = Number(curr.installments) || 1
-    return acc + Number(curr.amount) / installments
-  }, 0)
+  const totalIncomes = incomeForMonth(incomes, mi)
+  const totalCardDebt = creditCards.reduce((acc, curr) => acc + Number(curr.current_balance ?? 0), 0)
+  const totalMonthlyInstallments = installmentsForMonth(transactions, mi)
 
   const totalMonthlyOutflow = totalExpenses + totalMonthlyInstallments
   const netBalance = totalIncomes - totalMonthlyOutflow
   const commitmentRatio =
     totalIncomes > 0 ? Math.min(100, Math.round((totalMonthlyOutflow / totalIncomes) * 100)) : 0
 
+  const showSummaryBanner = new Date().getDate() <= 7
+
+  const kpis = [
+    { label: 'Ingresos', value: fmt(totalIncomes), hint: 'Este mes', icon: Wallet, color: 'text-emerald-400' },
+    {
+      label: 'Gastos fijos',
+      value: fmt(totalExpenses),
+      hint: `${paidCount}/${expenseLines.length} pagados`,
+      icon: Receipt,
+      color: 'text-amber-400',
+    },
+    { label: 'Deuda tarjetas', value: fmt(totalCardDebt), hint: 'Uso acumulado', icon: TrendingDown, color: 'text-rose-400' },
+    { label: 'Tarjetas', value: String(creditCards.length), hint: 'Registradas', icon: CardIcon, color: 'text-sky-400' },
+  ]
+
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Navbar
-        userName={user?.name ?? ''}
-        scope={scope}
-        households={households}
-        onScopeChange={setScope}
-        onHouseholdsChanged={handleHouseholdsChanged}
+    <>
+      {/* Aviso del resumen del mes anterior (primeros días del mes) */}
+      {showSummaryBanner && (
+        <Link
+          href="/resumen"
+          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm transition-colors hover:bg-emerald-500/15"
+        >
+          <span className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span>
+              Ya está listo tu resumen de <strong>{monthLongName(mi - 1)}</strong>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-emerald-400" />
+        </Link>
+      )}
+
+      {/* Encabezado y acciones rápidas */}
+      <div className="space-y-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-3xl">
+            <Terminal className="h-5 w-5 text-emerald-400 sm:h-7 sm:w-7" />
+            <span>
+              Dashboard de Finanzas<span className="animate-pulse text-emerald-400">_</span>
+            </span>
+          </h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Ingresos, gastos fijos, tarjetas y compras a cuotas.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <AddIncomeModal onIncomeAdded={fetchAllData} householdId={householdId} />
+          <AddExpenseModal onExpenseAdded={fetchAllData} householdId={householdId} />
+          <AddCreditCardModal onCardAdded={fetchAllData} householdId={householdId} />
+          <AddCardTransactionModal cards={creditCards} onTransactionAdded={fetchAllData} />
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {kpis.map(({ icon: Icon, ...kpi }) => (
+          <Card key={kpi.label} className="border-emerald-500/15">
+            <CardContent className="space-y-1 p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground sm:text-xs">
+                  {kpi.label}
+                </p>
+                <Icon className={`h-4 w-4 shrink-0 ${kpi.color}`} />
+              </div>
+              <p className={`truncate text-lg font-bold tabular-nums sm:text-2xl ${kpi.color}`}>
+                {kpi.value}
+              </p>
+              <p className="text-[11px] text-muted-foreground sm:text-xs">{kpi.hint}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Estado financiero neto */}
+      <Card className="border-emerald-500/15">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+            <span className="flex items-center gap-2">
+              <PiggyBank className="h-4 w-4 text-purple-400" />
+              Estado financiero · {monthLabel(mi)}
+            </span>
+            <span
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                netBalance >= 0
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+              }`}
+            >
+              {netBalance >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div
+              className={`order-first col-span-2 rounded-lg border p-3 sm:order-last sm:col-span-1 ${
+                netBalance >= 0
+                  ? 'border-purple-500/20 bg-purple-500/5'
+                  : 'border-rose-500/30 bg-rose-500/10'
+              }`}
+            >
+              <p className="text-xs text-muted-foreground">
+                {netBalance >= 0 ? 'Dinero libre estimado' : 'Faltante estimado'}
+              </p>
+              <p
+                className={`mt-1 text-2xl font-black tabular-nums ${
+                  netBalance >= 0 ? 'text-purple-400' : 'text-rose-400'
+                }`}
+              >
+                {fmt(netBalance)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3">
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingUp className="h-3 w-3 text-emerald-400" /> Ingresos
+              </p>
+              <p className="mt-1 text-base font-bold tabular-nums text-emerald-400 sm:text-xl">
+                +{fmt(totalIncomes)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-rose-500/10 bg-rose-500/5 p-3">
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingDown className="h-3 w-3 text-rose-400" /> Gastos + cuotas
+              </p>
+              <p className="mt-1 text-base font-bold tabular-nums text-rose-400 sm:text-xl">
+                -{fmt(totalMonthlyOutflow)}
+              </p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Fijos {fmt(totalExpenses)} · Cuotas {fmt(totalMonthlyInstallments)}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span className="text-muted-foreground">Capacidad de ingresos comprometida</span>
+              <span
+                className={`font-bold tabular-nums ${
+                  commitmentRatio > 80 ? 'text-rose-400' : 'text-emerald-400'
+                }`}
+              >
+                {commitmentRatio}%
+              </span>
+            </div>
+            <SegmentBar percent={commitmentRatio} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Gastos fijos del mes: pagar y editar */}
+      <Card className="border-emerald-500/15">
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+            <span className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-amber-400" />
+              Gastos fijos · {monthLabel(mi)}
+            </span>
+            {expenseLines.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                Pendiente <span className="font-semibold text-amber-400">{fmt(pendingExpenses)}</span>
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingExpenses ? (
+            <p className="text-sm text-muted-foreground">Cargando gastos fijos...</p>
+          ) : expenseLines.length === 0 ? (
+            <EmptyState icon={Receipt} text="No hay gastos fijos registrados aún." />
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {paidCount} de {expenseLines.length} pagados
+                  </span>
+                  <span className="tabular-nums">{paidPercent}%</span>
+                </div>
+                <SegmentBar percent={paidPercent} colorClass="bg-emerald-400" />
+              </div>
+              <ul className="space-y-2">
+                {expenseLines.map((line) => (
+                  <ExpenseRow
+                    key={line.expense.id}
+                    title={line.expense.title}
+                    subtitle={`${line.expense.category ? `${line.expense.category} · ` : ''}Día ${line.expense.due_date}`}
+                    amount={fmt(line.amount)}
+                    paid={line.paid}
+                    onToggle={() => handleTogglePaid(line)}
+                    onEdit={() => setEditingLine(line)}
+                  />
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground">
+                Toca la casilla para marcar como pagado. Toca el gasto para cambiar su monto de este mes.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Gráficos */}
+      <FinancialCharts
+        totalIncomes={totalIncomes}
+        totalExpenses={totalExpenses}
+        totalCardDebt={totalCardDebt}
+        totalMonthlyInstallments={totalMonthlyInstallments}
       />
 
-      <main className="container mx-auto p-4 md:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard de Finanzas</h1>
-            <p className="text-sm text-muted-foreground">
-              Vista: <span className="font-semibold text-foreground">{scopeLabel}</span> · Gestiona tus
-              ingresos, gastos fijos, tarjetas y compras a cuotas.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <AddIncomeModal onIncomeAdded={fetchAllData} householdId={householdId} />
-            <AddExpenseModal onExpenseAdded={fetchAllData} householdId={householdId} />
-            <AddCreditCardModal onCardAdded={fetchAllData} householdId={householdId} />
-            <AddCardTransactionModal cards={creditCards} onTransactionAdded={fetchAllData} />
-          </div>
-        </div>
-
-        {/* Tarjetas resumen KPIs */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">
-                ${totalIncomes.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">Total acumulado</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Gastos Básicos Fijos</CardTitle>
-              <Receipt className="h-4 w-4 text-amber-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                ${totalExpenses.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">Costos fijos mensuales</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Deuda en Tarjetas</CardTitle>
-              <TrendingDown className="h-4 w-4 text-rose-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-rose-600">
-                ${totalCardDebt.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">Uso acumulado de tarjetas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Tarjetas de Crédito</CardTitle>
-              <CardIcon className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{creditCards.length}</div>
-              <p className="text-xs text-muted-foreground">Tarjetas registradas</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sección de Balance Neto y Salud Financiera */}
-        <Card className="border-l-4 border-l-purple-500 bg-card/50 backdrop-blur-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-bold flex items-center justify-between">
-              <span>Estado Financiero Neto (Mensual)</span>
-              <span
-                className={`text-sm px-2.5 py-1 rounded-full font-semibold ${
-                  netBalance >= 0
-                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                }`}
-              >
-                {netBalance >= 0 ? 'EN POSITIVO (SUPERÁVIT)' : 'EN NEGATIVO (DÉFICIT)'}
-              </span>
+      {/* Tarjetas y compras */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        <Card className="border-emerald-500/15">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CardIcon className="h-4 w-4 text-sky-400" />
+              Mis tarjetas de crédito
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              {/* Ingresos */}
-              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                <p className="text-xs text-muted-foreground font-medium">Ingresos Totales</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  +${totalIncomes.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
+          <CardContent>
+            {loadingCards ? (
+              <p className="text-sm text-muted-foreground">Cargando tarjetas...</p>
+            ) : creditCards.length === 0 ? (
+              <EmptyState icon={CardIcon} text="No hay tarjetas registradas aún." />
+            ) : (
+              <ul className="space-y-2">
+                {creditCards.map((card) => {
+                  const cardName = card.name ?? card.card_alias ?? card.bank_name ?? 'Tarjeta'
+                  const cardBal = Number(card.current_balance ?? 0)
+                  const totalLimit = Number(card.total_limit ?? 0)
+                  const usage = totalLimit > 0 ? Math.round((cardBal / totalLimit) * 100) : 0
 
-              {/* Compromisos del Mes */}
-              <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/10">
-                <p className="text-xs text-muted-foreground font-medium">Gastos + Cuotas del Mes</p>
-                <p className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">
-                  -${totalMonthlyOutflow.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                </p>
-                <span className="text-[10px] text-muted-foreground block mt-0.5">
-                  (Fijos: ${totalExpenses.toLocaleString('es-CO')} · Cuotas: $
-                  {totalMonthlyInstallments.toLocaleString('es-CO')})
-                </span>
-              </div>
-
-              {/* Balance Disponible */}
-              <div
-                className={`p-3 rounded-lg border ${
-                  netBalance >= 0
-                    ? 'bg-purple-500/5 border-purple-500/20'
-                    : 'bg-rose-500/10 border-rose-500/30'
-                }`}
-              >
-                <p className="text-xs text-muted-foreground font-medium">
-                  {netBalance >= 0 ? 'Dinero Libre Estimado' : 'Faltante Estimado'}
-                </p>
-                <p
-                  className={`text-2xl font-black mt-1 ${
-                    netBalance >= 0
-                      ? 'text-purple-600 dark:text-purple-400'
-                      : 'text-rose-600 dark:text-rose-400'
-                  }`}
-                >
-                  ${netBalance.toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-
-            {/* Barra de Porcentaje de Compromiso */}
-            <div className="space-y-1.5 pt-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-muted-foreground">Capacidad de Ingresos Comprometida:</span>
-                <span className={commitmentRatio > 80 ? 'text-rose-500 font-bold' : 'text-emerald-500 font-bold'}>
-                  {commitmentRatio}%
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-500 ${
-                    commitmentRatio > 80
-                      ? 'bg-rose-500'
-                      : commitmentRatio > 50
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(100, commitmentRatio)}%` }}
-                />
-              </div>
-            </div>
+                  return (
+                    <ListRow
+                      key={card.id}
+                      icon={<CardIcon className="h-5 w-5 text-sky-400" />}
+                      title={cardName}
+                      subtitle={`Cupo ${fmt(totalLimit)}`}
+                      amount={fmt(cardBal)}
+                      amountClassName="text-rose-400"
+                      secondary={`${usage}% usado`}
+                      onDelete={() => handleDeleteCard(card.id)}
+                    />
+                  )
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
-        {/* Sección de Gráficos Financieros */}
-        <FinancialCharts
-          totalIncomes={totalIncomes}
-          totalExpenses={totalExpenses}
-          totalCardDebt={totalCardDebt}
-        />
+        <Card className="border-emerald-500/15">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShoppingBag className="h-4 w-4 text-purple-400" />
+              Compras recientes con tarjeta
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingTransactions ? (
+              <p className="text-sm text-muted-foreground">Cargando compras...</p>
+            ) : transactions.length === 0 ? (
+              <EmptyState icon={ShoppingBag} text="No hay compras registradas aún." />
+            ) : (
+              <ul className="space-y-2">
+                {transactions.map((tx) => {
+                  const installments = Number(tx.installments) || 1
+                  return (
+                    <ListRow
+                      key={tx.id}
+                      icon={<ShoppingBag className="h-5 w-5 text-purple-400" />}
+                      title={tx.description}
+                      subtitle={`${installments} ${installments === 1 ? 'cuota' : 'cuotas'} · ${fmt(Number(tx.amount) / installments)}/mes`}
+                      amount={fmt(Number(tx.amount))}
+                      amountClassName="text-purple-400"
+                      onDelete={() => handleDeleteTransaction(tx)}
+                    />
+                  )
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Sección de Tarjetas de Crédito y Registro de Compras */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Listado de Tarjetas */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Mis Tarjetas de Crédito</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingCards ? (
-                <p className="text-sm text-muted-foreground">Cargando tarjetas...</p>
-              ) : creditCards.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No hay tarjetas registradas aún.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tarjeta</TableHead>
-                      <TableHead>Deuda / Cupo</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {creditCards.map((card) => {
-                      const cardName = card.name ?? card.card_alias ?? card.bank_name ?? 'Tarjeta'
-                      const cardBal = card.current_balance ?? 0
-                      const totalLimit = card.total_limit ?? 0
+      {/* Ingresos */}
+      <Card className="border-emerald-500/15">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingUp className="h-4 w-4 text-emerald-400" />
+            Historial de ingresos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingIncomes ? (
+            <p className="text-sm text-muted-foreground">Cargando ingresos...</p>
+          ) : incomes.length === 0 ? (
+            <EmptyState icon={Wallet} text="No hay ingresos registrados aún." />
+          ) : (
+            <ul className="grid gap-2 lg:grid-cols-2">
+              {incomes.map((income) => (
+                <ListRow
+                  key={income.id}
+                  icon={<TrendingUp className="h-5 w-5 text-emerald-400" />}
+                  title={income.title}
+                  subtitle={frequencyLabel[income.frequency] ?? income.frequency}
+                  amount={fmt(Number(income.amount))}
+                  amountClassName="text-emerald-400"
+                  onDelete={() => handleDeleteIncome(income.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-                      return (
-                        <TableRow key={card.id}>
-                          <TableCell className="font-medium">{cardName}</TableCell>
-                          <TableCell>
-                            <span className="text-rose-600 font-semibold">
-                              ${Number(cardBal).toLocaleString('es-CO')}
-                            </span>
-                            <span className="text-xs text-muted-foreground block">
-                              de ${Number(totalLimit).toLocaleString('es-CO')}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCard(card.id)}>
-                              <Trash2 className="h-4 w-4 text-rose-500" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+      {/* Deudas y préstamos */}
+      <DebtsModule debts={debts} onDebtUpdated={fetchAllData} householdId={householdId} />
 
-          {/* Historial de Compras con Tarjeta */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Compras Recientes con Tarjeta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingTransactions ? (
-                <p className="text-sm text-muted-foreground">Cargando compras...</p>
-              ) : transactions.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No hay compras registradas aún.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Concepto</TableHead>
-                      <TableHead>Cuotas</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((tx) => (
-                      <TableRow key={tx.id}>
-                        <TableCell className="font-medium">{tx.description}</TableCell>
-                        <TableCell>
-                          {tx.installments} {tx.installments === 1 ? 'cuota' : 'cuotas'}
-                        </TableCell>
-                        <TableCell className="text-right text-purple-600 font-semibold">
-                          ${Number(tx.amount).toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTransaction(tx)}>
-                            <Trash2 className="h-4 w-4 text-rose-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Grilla con Historiales de Ingresos y Gastos */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Tabla de Historial de Ingresos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Historial de Ingresos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingIncomes ? (
-                <p className="text-sm text-muted-foreground">Cargando ingresos...</p>
-              ) : incomes.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No hay ingresos registrados aún.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Concepto</TableHead>
-                      <TableHead>Frecuencia</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {incomes.map((income) => (
-                      <TableRow key={income.id}>
-                        <TableCell className="font-medium">{income.title}</TableCell>
-                        <TableCell className="capitalize">{income.frequency}</TableCell>
-                        <TableCell className="text-right text-emerald-600 font-semibold">
-                          ${Number(income.amount).toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteIncome(income.id)}>
-                            <Trash2 className="h-4 w-4 text-rose-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Tabla de Historial de Gastos Fijos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos Básicos Fijos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingExpenses ? (
-                <p className="text-sm text-muted-foreground">Cargando gastos fijos...</p>
-              ) : expenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No hay gastos fijos registrados aún.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Servicio</TableHead>
-                      <TableHead>Día de Pago</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">{expense.title}</TableCell>
-                        <TableCell>Día {expense.due_date}</TableCell>
-                        <TableCell className="text-right text-amber-600 font-semibold">
-                          ${Number(expense.amount).toLocaleString('es-CO', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteExpense(expense.id)}>
-                            <Trash2 className="h-4 w-4 text-rose-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Módulo de Deudas y Préstamos */}
-        <DebtsModule debts={debts} onDebtUpdated={fetchAllData} householdId={householdId} />
-      </main>
-    </div>
+      <EditExpenseModal
+        line={editingLine}
+        monthIndex={mi}
+        onClose={() => setEditingLine(null)}
+        onSaved={() => {
+          fetchExpenses()
+          fetchExpenseMonths()
+        }}
+        onDelete={handleDeleteExpense}
+      />
+    </>
   )
 }
 
 export default function Home() {
   return (
     <AuthGate>
-      <Dashboard />
+      <AppShell>
+        <Dashboard />
+      </AppShell>
     </AuthGate>
   )
 }

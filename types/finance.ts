@@ -43,6 +43,19 @@ export interface BasicExpense {
   created_at?: string
 }
 
+/** Estado de un gasto fijo en un mes concreto (monto de ese mes y si ya se pagó). */
+export interface ExpenseMonth {
+  id: string
+  expense_id: string
+  month: string
+  amount: number
+  paid: boolean
+  paid_at?: string | null
+  user_id?: string | null
+  household_id?: string | null
+  created_at?: string
+}
+
 export interface CreditCard {
   id: string
   user_id?: string | null
@@ -83,5 +96,15 @@ export interface Debt {
   paid_amount: number
   creditor?: string
   due_date?: string
+  created_at?: string
+}
+
+/** Movimiento de ahorro: positivo = ahorro, negativo = retiro. */
+export interface SavingsEntry {
+  id: string
+  user_id?: string
+  entry_date: string
+  amount: number
+  note?: string | null
   created_at?: string
 }
