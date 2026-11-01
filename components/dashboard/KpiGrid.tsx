@@ -13,7 +13,7 @@ interface KpiGridProps {
 
 export function KpiGrid({ totalIncomes, totalExpenses, paidCount, expenseCount, totalCardDebt, cardCount }: KpiGridProps) {
   const kpis = [
-    { label: 'Ingresos', value: fmt(totalIncomes), hint: 'Este mes', icon: Wallet, color: 'text-emerald-700 dark:text-emerald-400' },
+    { label: 'Ingresos', value: fmt(totalIncomes), hint: 'Recibido este mes', icon: Wallet, color: 'text-emerald-700 dark:text-emerald-400' },
     {
       label: 'Gastos fijos',
       value: fmt(totalExpenses),

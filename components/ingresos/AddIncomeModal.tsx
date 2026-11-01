@@ -11,13 +11,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
@@ -28,18 +21,11 @@ interface AddIncomeModalProps {
   householdId: string | null
 }
 
-const frequencyItems = [
-  { value: 'mensual', label: 'Mensual' },
-  { value: 'quincenal', label: 'Quincenal' },
-  { value: 'unico', label: 'Único / Ocasional' },
-]
-
 export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, householdId }) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
-  const [frequency, setFrequency] = useState<'mensual' | 'quincenal' | 'unico'>('mensual')
   const [date, setDate] = useState('')
 
   useEffect(() => {
@@ -67,7 +53,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
         profile_id: owner.user_id,
         title,
         amount: parseFloat(amount),
-        frequency,
+        frequency: 'unico',
         date,
       },
     ])
@@ -129,27 +115,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="frequency">Frecuencia</Label>
-            <Select
-              items={frequencyItems}
-              value={frequency}
-              onValueChange={(val) => {
-                if (val) setFrequency(val)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona frecuencia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mensual">Mensual</SelectItem>
-                <SelectItem value="quincenal">Quincenal</SelectItem>
-                <SelectItem value="unico">Único / Ocasional</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="date">Fecha de Ingreso</Label>
+            <Label htmlFor="date">Fecha en que lo recibiste</Label>
             <Input
               id="date"
               type="date"
@@ -157,6 +123,9 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
               onChange={(e) => setDate(e.target.value)}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Cada pago cuenta solo en el mes de su fecha. Registra cada pago cuando lo recibas.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

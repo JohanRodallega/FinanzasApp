@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AuthGate } from '@/components/shared/AuthGate'
 import { AppShell, useApp } from '@/components/shared/AppShell'
@@ -16,16 +16,21 @@ import { FinancialCharts } from '@/components/dashboard/FinancialCharts'
 import { KpiGrid } from '@/components/dashboard/KpiGrid'
 import { NetBalanceCard } from '@/components/dashboard/NetBalanceCard'
 import { FixedExpensesCard } from '@/components/dashboard/FixedExpensesCard'
+import { CurrentBalanceCard } from '@/components/dashboard/CurrentBalanceCard'
+import { OverdueExpensesCard } from '@/components/dashboard/OverdueExpensesCard'
 import { CardsSection } from '@/components/dashboard/CardsSection'
 import { IncomeHistoryCard } from '@/components/dashboard/IncomeHistoryCard'
+import { supabase } from '@/lib/supabase'
 import { useScopedTable } from '@/lib/use-scoped-table'
 import { deleteCardTransaction, deleteRow, setExpensePaid } from '@/lib/mutations'
 import { currentMonthIndex, monthKey, monthLongName } from '@/lib/dates'
 import {
+  currentBalance,
   incomeForMonth,
   installmentsForMonth,
   expenseLinesForMonth,
   normalExpensesInMonth,
+  overdueLines,
   type ExpenseLine,
 } from '@/lib/finance-calc'
 import type {
@@ -52,27 +57,40 @@ function Dashboard() {
   const debts = useScopedTable<Debt>('debts', 'las deudas', scope, userId)
   const normals = useScopedTable<NormalExpense>('normal_expenses', 'los gastos normales', scope, userId, 'expense_date')
 
-  const [editingLine, setEditingLine] = useState<ExpenseLine | null>(null)
+  const [editing, setEditing] = useState<{ line: ExpenseLine; monthIndex: number } | null>(null)
+
+  // Ahorros netos (solo personales): se descuentan del saldo porque ya no son dinero disponible
+  const [savingsNet, setSavingsNet] = useState(0)
+  const loadSavings = async () => {
+    if (scope !== 'personal') return setSavingsNet(0)
+    const { data } = await supabase.from('savings_entries').select('amount').eq('user_id', userId)
+    setSavingsNet((data ?? []).reduce((acc, e) => acc + Number(e.amount), 0))
+  }
+  useEffect(() => {
+    loadSavings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, userId])
 
   const refetchAll = () =>
     [incomes, expenses, expenseMonths, cards, transactions, debts, normals].forEach((t) => t.refetch())
 
   // Gastos fijos: cambio inmediato en pantalla y luego se confirma con la base de datos
-  const handleTogglePaid = async (line: ExpenseLine) => {
+  const handleTogglePaid = async (line: ExpenseLine, monthIndex = mi) => {
     const paid = !line.paid
     const id = line.expense.id
+    const key = monthKey(monthIndex)
     expenseMonths.setRows((prev) => [
-      ...prev.filter((r) => r.expense_id !== id),
+      ...prev.filter((r) => !(r.expense_id === id && r.month.slice(0, 10) === key)),
       {
         id: line.monthRow?.id ?? `tmp-${id}`,
         expense_id: id,
-        month: monthKey(mi),
+        month: key,
         amount: line.amount,
         paid,
         paid_at: paid ? new Date().toISOString() : null,
       },
     ])
-    await setExpensePaid(line, mi, paid)
+    await setExpensePaid(line, monthIndex, paid)
     expenseMonths.refetch()
   }
 
@@ -90,6 +108,17 @@ function Dashboard() {
 
   const expenseLines = expenseLinesForMonth(expenses.rows, expenseMonths.rows, mi).sort(
     (a, b) => Number(a.expense.due_date) - Number(b.expense.due_date)
+  )
+  const overdue = overdueLines(expenses.rows, expenseMonths.rows, mi)
+  const balance = currentBalance(
+    {
+      incomes: incomes.rows,
+      expenseMonths: expenseMonths.rows,
+      normals: normals.rows,
+      transactions: transactions.rows,
+      savingsNet,
+    },
+    mi
   )
   const monthNormals = normalExpensesInMonth(normals.rows, mi)
 
@@ -136,6 +165,8 @@ function Dashboard() {
         </div>
       </div>
 
+      <CurrentBalanceCard breakdown={balance} />
+
       <KpiGrid
         totalIncomes={totalIncomes}
         totalExpenses={totalFixed}
@@ -153,12 +184,18 @@ function Dashboard() {
         normal={totalNormal}
       />
 
+      <OverdueExpensesCard
+        lines={overdue}
+        onToggle={(l) => handleTogglePaid(l, l.monthIndex)}
+        onEdit={(l) => setEditing({ line: l, monthIndex: l.monthIndex })}
+      />
+
       <FixedExpensesCard
         monthIndex={mi}
         lines={expenseLines}
         loading={expenses.loading}
         onToggle={handleTogglePaid}
-        onEdit={setEditingLine}
+        onEdit={(l) => setEditing({ line: l, monthIndex: mi })}
       />
 
       <NormalExpensesCard
@@ -201,9 +238,9 @@ function Dashboard() {
       <DebtsModule debts={debts.rows} onDebtUpdated={refetchAll} householdId={householdId} />
 
       <EditExpenseModal
-        line={editingLine}
-        monthIndex={mi}
-        onClose={() => setEditingLine(null)}
+        line={editing?.line ?? null}
+        monthIndex={editing?.monthIndex ?? mi}
+        onClose={() => setEditing(null)}
         onSaved={() => {
           expenses.refetch()
           expenseMonths.refetch()

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   expenseLinesForMonth,
+  currentBalance,
   incomeForMonth,
   installmentsForMonth,
   normalExpensesInMonth,
+  overdueLines,
   sumNormalExpenses,
+  totalIncomeUpTo,
 } from '@/lib/finance-calc'
 import { monthIndexOf } from '@/lib/dates'
 import type { BasicExpense, CardTransaction, ExpenseMonth, Income, NormalExpense } from '@/types/finance'
@@ -21,15 +24,52 @@ describe('incomeForMonth', () => {
     expect(incomeForMonth(list, mi('2026-11-01'))).toBe(0)
   })
 
-  it('repite el mensual desde su fecha de inicio', () => {
-    const list = [income('mensual', 1000, '2026-09-01')]
-    expect(incomeForMonth(list, mi('2026-08-01'))).toBe(0)
-    expect(incomeForMonth(list, mi('2026-12-01'))).toBe(1000)
+  it('no repite el mensual ni el quincenal en otros meses', () => {
+    const list = [income('mensual', 1000, '2026-09-01'), income('quincenal', 500, '2026-09-15')]
+    expect(incomeForMonth(list, mi('2026-09-01'))).toBe(1500)
+    expect(incomeForMonth(list, mi('2026-10-01'))).toBe(0)
   })
+})
 
-  it('cuenta dos veces el quincenal', () => {
-    const list = [income('quincenal', 1300000, '2026-10-01')]
-    expect(incomeForMonth(list, mi('2026-10-01'))).toBe(2600000)
+describe('totalIncomeUpTo', () => {
+  it('acumula ingresos hasta el mes indicado', () => {
+    const list = [income('unico', 100, '2026-09-10'), income('mensual', 200, '2026-10-01'), income('unico', 50, '2026-11-02')]
+    expect(totalIncomeUpTo(list, mi('2026-10-01'))).toBe(300)
+  })
+})
+
+describe('overdueLines', () => {
+  const expense = (id: string, created_at: string) =>
+    ({ id, amount: 100, created_at, due_date: 5 }) as unknown as BasicExpense
+  const row = (expense_id: string, month: string, paid: boolean) =>
+    ({ id: `r-${expense_id}-${month}`, expense_id, month, amount: 100, paid }) as unknown as ExpenseMonth
+
+  it('lista los meses anteriores sin pagar y omite el actual', () => {
+    const lines = overdueLines(
+      [expense('a', '2026-09-01T00:00:00')],
+      [row('a', '2026-09-01', true)],
+      mi('2026-11-01')
+    )
+    expect(lines.map((l) => l.monthIndex)).toEqual([mi('2026-10-01')])
+  })
+})
+
+describe('currentBalance', () => {
+  it('resta lo pagado y lo ahorrado de lo recibido', () => {
+    const r = currentBalance(
+      {
+        incomes: [income('unico', 1000, '2026-10-01')],
+        expenseMonths: [
+          { id: 'r', expense_id: 'a', month: '2026-10-01', amount: 200, paid: true },
+          { id: 's', expense_id: 'b', month: '2026-10-01', amount: 999, paid: false },
+        ] as unknown as ExpenseMonth[],
+        normals: [{ amount: 100, expense_date: '2026-10-05' }] as unknown as NormalExpense[],
+        transactions: [],
+        savingsNet: 300,
+      },
+      mi('2026-11-01')
+    )
+    expect(r.balance).toBe(400)
   })
 })
 
