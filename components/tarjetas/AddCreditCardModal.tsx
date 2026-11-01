@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { CreditCard } from 'lucide-react'
 
@@ -31,13 +32,23 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || !totalLimit) return
+    if (!name.trim() || !totalLimit) return
+
+    const limit = parseFloat(totalLimit)
+    const balance = currentBalance ? parseFloat(currentBalance) : 0
+    const closing = parseInt(closingDay, 10)
+    const due = parseInt(dueDay, 10)
+    if (!(limit > 0)) return toast.error('El cupo debe ser mayor que 0.')
+    if (!(balance >= 0)) return toast.error('El saldo actual no puede ser negativo.')
+    if (!(closing >= 1 && closing <= 31) || !(due >= 1 && due <= 31)) {
+      return toast.error('Los días de corte y de pago deben estar entre 1 y 31.')
+    }
 
     setLoading(true)
 
     const owner = await ownerFields(householdId)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       setLoading(false)
       return
     }
@@ -46,19 +57,18 @@ export const AddCreditCardModal: React.FC<AddCreditCardModalProps> = ({ onCardAd
       {
         ...owner,
         profile_id: owner.user_id,
-        name,
-        total_limit: parseFloat(totalLimit),
-        current_balance: currentBalance ? parseFloat(currentBalance) : 0,
-        closing_day: parseInt(closingDay, 10),
-        due_day: parseInt(dueDay, 10),
+        name: name.trim(),
+        total_limit: limit,
+        current_balance: balance,
+        closing_day: closing,
+        due_day: due,
       },
     ])
 
     setLoading(false)
 
     if (error) {
-      console.error('Error al agregar tarjeta:', error.message)
-      alert('Error al guardar la tarjeta: ' + error.message)
+      toast.error('Error al guardar la tarjeta: ' + error.message)
     } else {
       setName('')
       setTotalLimit('')

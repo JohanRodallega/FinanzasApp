@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { monthKey, monthLabel } from '@/lib/dates'
 import type { ExpenseLine } from '@/lib/finance-calc'
@@ -48,7 +49,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
 
     const owner = await ownerFields(line.expense.household_id ?? null)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       setLoading(false)
       return
     }
@@ -67,8 +68,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
     )
 
     if (error) {
-      console.error('Error al guardar el gasto del mes:', error.message)
-      alert('Error al guardar: ' + error.message)
+      toast.error('Error al guardar: ' + error.message)
       setLoading(false)
       return
     }
@@ -78,7 +78,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
         .from('basic_expenses')
         .update({ amount: value })
         .eq('id', line.expense.id)
-      if (baseError) console.error('Error al actualizar el monto base:', baseError.message)
+      if (baseError) toast.error('No se pudo actualizar el monto base: ' + baseError.message)
     }
 
     setLoading(false)
@@ -128,7 +128,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
             <Button
               type="button"
               variant="ghost"
-              className="gap-2 text-rose-500 hover:text-rose-500"
+              className="gap-2 text-rose-600 dark:text-rose-400 hover:text-rose-500"
               onClick={() => {
                 if (line) {
                   onDelete(line.expense.id)

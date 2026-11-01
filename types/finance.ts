@@ -108,3 +108,15 @@ export interface SavingsEntry {
   note?: string | null
   created_at?: string
 }
+
+/** Gasto normal: sin fecha límite ni suscripción (transferencias, tiendas, etc.). */
+export interface NormalExpense {
+  id: string
+  user_id?: string | null
+  household_id?: string | null
+  title: string
+  amount: number
+  category: string
+  expense_date: string
+  created_at?: string
+}

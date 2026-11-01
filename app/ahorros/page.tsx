@@ -19,6 +19,7 @@ import {
   Cell,
 } from 'recharts'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { fmt, fmtCompact } from '@/lib/format'
 import { useHideSavings } from '@/lib/privacy'
 import { currentMonthIndex, formatDate, monthIndexOf, monthLabel, monthShort } from '@/lib/dates'
@@ -37,13 +38,14 @@ function Savings() {
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('savings_entries')
       .select('*')
       .eq('user_id', user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false })
-    if (data) setEntries(data as SavingsEntry[])
+    if (error) toast.error('No se pudieron cargar los ahorros: ' + error.message)
+    else if (data) setEntries(data as SavingsEntry[])
     setLoading(false)
   }, [user.id])
 
@@ -54,7 +56,8 @@ function Savings() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('¿Eliminar este movimiento?')) return
     const { error } = await supabase.from('savings_entries').delete().eq('id', id)
-    if (!error) fetchEntries()
+    if (error) toast.error('No se pudo eliminar el movimiento: ' + error.message)
+    else fetchEntries()
   }
 
   // Cálculos
@@ -98,14 +101,14 @@ function Savings() {
     }))
 
   const stats = [
-    { label: 'Este mes', value: show(thisMonth), icon: CalendarDays, color: 'text-emerald-400' },
-    { label: 'Promedio mensual', value: show(average), icon: TrendingUp, color: 'text-sky-400' },
+    { label: 'Este mes', value: show(thisMonth), icon: CalendarDays, color: 'text-emerald-700 dark:text-emerald-400' },
+    { label: 'Promedio mensual', value: show(average), icon: TrendingUp, color: 'text-sky-700 dark:text-sky-400' },
     {
       label: 'Mejor mes',
       value: best && best.net > 0 ? show(best.net) : '—',
       hint: best && best.net > 0 ? monthLabel(best.idx) : undefined,
       icon: Trophy,
-      color: 'text-amber-400',
+      color: 'text-amber-700 dark:text-amber-400',
     },
   ]
 
@@ -115,7 +118,7 @@ function Savings() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-3xl">
-            <PiggyBank className="h-5 w-5 text-emerald-400 sm:h-7 sm:w-7" />
+            <PiggyBank className="h-5 w-5 text-emerald-700 dark:text-emerald-400 sm:h-7 sm:w-7" />
             Ahorros
           </h1>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground sm:text-sm">
@@ -142,7 +145,7 @@ function Savings() {
       <Card className="border-emerald-500/20">
         <CardContent className="space-y-1 p-4 sm:p-6">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Total ahorrado</p>
-          <p className="text-3xl font-black tabular-nums text-emerald-400 sm:text-5xl">{show(total)}</p>
+          <p className="text-3xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-5xl">{show(total)}</p>
           <p className="text-xs text-muted-foreground">
             {entries.length === 0
               ? 'Aún no has registrado movimientos.'
@@ -174,7 +177,7 @@ function Savings() {
         <Card className="border-emerald-500/15">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
+              <TrendingUp className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
               Mes a mes y acumulado
             </CardTitle>
           </CardHeader>
@@ -236,7 +239,7 @@ function Savings() {
       <Card className="border-emerald-500/15">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <CalendarDays className="h-4 w-4 text-sky-400" />
+            <CalendarDays className="h-4 w-4 text-sky-700 dark:text-sky-400" />
             Registro mensual
           </CardTitle>
         </CardHeader>
@@ -262,7 +265,7 @@ function Savings() {
                   </span>
                   <span
                     className={`shrink-0 text-sm font-semibold tabular-nums ${
-                      g.net >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      g.net >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
                     {hidden ? MASK : `${g.net >= 0 ? '+' : ''}${fmt(g.net)}`}
@@ -276,15 +279,15 @@ function Savings() {
                         key={entry.id}
                         icon={
                           isWithdrawal ? (
-                            <ArrowDownToLine className="h-5 w-5 text-rose-400" />
+                            <ArrowDownToLine className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                           ) : (
-                            <PiggyBank className="h-5 w-5 text-emerald-400" />
+                            <PiggyBank className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                           )
                         }
                         title={entry.note || (isWithdrawal ? 'Retiro' : 'Ahorro')}
                         subtitle={formatDate(entry.entry_date)}
                         amount={hidden ? MASK : `${isWithdrawal ? '-' : '+'}${fmt(Math.abs(Number(entry.amount)))}`}
-                        amountClassName={isWithdrawal ? 'text-rose-400' : 'text-emerald-400'}
+                        amountClassName={isWithdrawal ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}
                         onDelete={() => handleDelete(entry.id)}
                       />
                     )

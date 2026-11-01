@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { todayStr } from '@/lib/dates'
 import { PiggyBank, ArrowDownToLine } from 'lucide-react'
 
@@ -46,8 +47,7 @@ export const AddSavingsModal: React.FC<AddSavingsModalProps> = ({ onAdded }) => 
     setLoading(false)
 
     if (error) {
-      console.error('Error al guardar el ahorro:', error.message)
-      alert('Error al guardar: ' + error.message)
+      toast.error('Error al guardar: ' + error.message)
       return
     }
 
@@ -80,7 +80,7 @@ export const AddSavingsModal: React.FC<AddSavingsModalProps> = ({ onAdded }) => 
               onClick={() => setKind('ahorro')}
               className={`flex h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors ${
                 kind === 'ahorro'
-                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
+                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
                   : 'border-border text-muted-foreground'
               }`}
             >
@@ -91,7 +91,7 @@ export const AddSavingsModal: React.FC<AddSavingsModalProps> = ({ onAdded }) => 
               onClick={() => setKind('retiro')}
               className={`flex h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors ${
                 kind === 'retiro'
-                  ? 'border-rose-500/50 bg-rose-500/15 text-rose-400'
+                  ? 'border-rose-500/50 bg-rose-500/15 text-rose-600 dark:text-rose-400'
                   : 'border-border text-muted-foreground'
               }`}
             >

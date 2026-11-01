@@ -20,6 +20,7 @@ import { fmt, fmtCompact } from '@/lib/format'
 interface FinancialChartsProps {
   totalIncomes: number
   totalExpenses: number
+  totalNormalExpenses: number
   totalCardDebt: number
   totalMonthlyInstallments: number
 }
@@ -29,23 +30,27 @@ const COLORS = {
   expenses: '#fbbf24',
   installments: '#a78bfa',
   debt: '#fb7185',
+  normal: '#f472b6',
 }
 
 export const FinancialCharts: React.FC<FinancialChartsProps> = ({
   totalIncomes,
   totalExpenses,
+  totalNormalExpenses,
   totalCardDebt,
   totalMonthlyInstallments,
 }) => {
   const barData = [
     { name: 'Ingresos', monto: totalIncomes, color: COLORS.income },
     { name: 'Gastos', monto: totalExpenses, color: COLORS.expenses },
+    { name: 'Normales', monto: totalNormalExpenses, color: COLORS.normal },
     { name: 'Cuotas', monto: totalMonthlyInstallments, color: COLORS.installments },
     { name: 'Tarjetas', monto: totalCardDebt, color: COLORS.debt },
   ]
 
   const pieData = [
     { name: 'Gastos fijos', value: totalExpenses, color: COLORS.expenses },
+    { name: 'Gastos normales', value: totalNormalExpenses, color: COLORS.normal },
     { name: 'Cuotas del mes', value: totalMonthlyInstallments, color: COLORS.installments },
     { name: 'Deuda tarjetas', value: totalCardDebt, color: COLORS.debt },
   ].filter((item) => item.value > 0)
@@ -58,7 +63,7 @@ export const FinancialCharts: React.FC<FinancialChartsProps> = ({
       <Card className="border-emerald-500/15 lg:col-span-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Activity className="h-4 w-4 text-emerald-400" />
+            <Activity className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
             Resumen general
           </CardTitle>
         </CardHeader>
@@ -124,7 +129,7 @@ export const FinancialCharts: React.FC<FinancialChartsProps> = ({
       <Card className="border-emerald-500/15 lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Layers className="h-4 w-4 text-violet-400" />
+            <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             Distribución de compromisos
           </CardTitle>
         </CardHeader>

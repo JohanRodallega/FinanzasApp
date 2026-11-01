@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { TrendingUp } from 'lucide-react'
 
@@ -47,13 +48,15 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !amount) return
+    if (!title.trim() || !amount) return
+
+    if (!(parseFloat(amount) > 0)) return toast.error('El monto debe ser mayor que 0.')
 
     setLoading(true)
 
     const owner = await ownerFields(householdId)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       setLoading(false)
       return
     }
@@ -72,8 +75,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({ onIncomeAdded, h
     setLoading(false)
 
     if (error) {
-      console.error('Error al agregar ingreso:', error.message)
-      alert('Error al guardar el ingreso: ' + error.message)
+      toast.error('Error al guardar el ingreso: ' + error.message)
     } else {
       setTitle('')
       setAmount('')

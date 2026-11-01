@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Logo } from '@/components/shared/Logo'
 import { supabase } from '@/lib/supabase'
 
 const traducirError = (message: string) => {
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -36,6 +38,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     setInfo(null)
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
+
     setLoading(true)
 
     if (mode === 'login') {
@@ -62,6 +69,7 @@ export default function LoginPage() {
         setInfo('Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.')
         setMode('login')
         setPassword('')
+        setConfirmPassword('')
       }
     }
 
@@ -72,6 +80,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
+          <Logo className="mb-2 h-14 w-14 text-foreground" />
           <CardTitle className="text-xl">
             {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
           </CardTitle>
@@ -118,8 +127,32 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-rose-500">{error}</p>}
-            {info && <p className="text-sm text-emerald-500">{info}</p>}
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirmar contraseña</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  placeholder="Repite la contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+                {info}
+              </p>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Procesando...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
@@ -133,6 +166,7 @@ export default function LoginPage() {
                 setMode(mode === 'login' ? 'signup' : 'login')
                 setError(null)
                 setInfo(null)
+                setConfirmPassword('')
               }}
             >
               {mode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}

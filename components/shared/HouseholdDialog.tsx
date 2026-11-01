@@ -124,7 +124,7 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
                       onClick={() => handleCopy(h)}
                     >
                       {copiedId === h.id ? (
-                        <Check className="h-4 w-4 text-emerald-500" />
+                        <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
                       ) : (
                         <Copy className="h-4 w-4" />
                       )}
@@ -169,7 +169,7 @@ export const HouseholdDialog: React.FC<HouseholdDialogProps> = ({ households, on
             </div>
           </form>
 
-          {error && <p className="text-sm text-rose-500">{error}</p>}
+          {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         </div>
       </DialogContent>
     </Dialog>

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { fmt } from '@/lib/format'
 import { CreditCard } from '@/types/finance'
@@ -47,36 +48,39 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedCardId || !description || !amount) return
+    if (!selectedCardId || !description.trim() || !amount) return
 
     const selectedCard = cards.find((c) => c.id === selectedCardId)
     if (!selectedCard) return
 
-    setLoading(true)
     const numAmount = parseFloat(amount)
+    const numInstallments = parseInt(installments, 10)
+    if (!(numAmount > 0)) return toast.error('El monto debe ser mayor que 0.')
+    if (!(numInstallments >= 1)) return toast.error('Las cuotas deben ser al menos 1.')
+
+    setLoading(true)
 
     // La compra pertenece al mismo hogar (o a lo personal) que la tarjeta
     const owner = await ownerFields(selectedCard.household_id ?? null)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       setLoading(false)
       return
     }
 
     // 1. Guardar la compra en la tabla card_transactions
-    const { error: txError } = await supabase.from('card_transactions').insert([
+    const { data: inserted, error: txError } = await supabase.from('card_transactions').insert([
       {
         ...owner,
         card_id: selectedCardId,
-        description,
+        description: description.trim(),
         amount: numAmount,
-        installments: parseInt(installments, 10),
+        installments: numInstallments,
       },
-    ])
+    ]).select('id').single()
 
     if (txError) {
-      console.error('Error al guardar compra:', txError.message)
-      alert('Error al guardar la compra: ' + txError.message)
+      toast.error('Error al guardar la compra: ' + txError.message)
       setLoading(false)
       return
     }
@@ -92,7 +96,9 @@ export const AddCardTransactionModal: React.FC<AddCardTransactionModalProps> = (
     setLoading(false)
 
     if (cardError) {
-      console.error('Error al actualizar el saldo de la tarjeta:', cardError.message)
+      // Sin transacción de base de datos: se deshace la compra para no dejar el saldo inconsistente
+      if (inserted?.id) await supabase.from('card_transactions').delete().eq('id', inserted.id)
+      toast.error('No se pudo actualizar el saldo de la tarjeta: ' + cardError.message)
     } else {
       setDescription('')
       setAmount('')

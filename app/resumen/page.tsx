@@ -15,11 +15,13 @@ import {
   CartesianGrid,
 } from 'recharts'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
+import { scoped } from '@/lib/scope'
 import { fmt, fmtCompact } from '@/lib/format'
 import { useHideSavings } from '@/lib/privacy'
 import { currentMonthIndex, monthIndexOf, monthKey, monthLabel, monthShort } from '@/lib/dates'
-import { incomeForMonth, installmentsForMonth, expenseLinesForMonth } from '@/lib/finance-calc'
-import { Income, BasicExpense, ExpenseMonth, CardTransaction, SavingsEntry } from '@/types/finance'
+import { incomeForMonth, installmentsForMonth, expenseLinesForMonth, sumNormalExpenses } from '@/lib/finance-calc'
+import { Income, BasicExpense, ExpenseMonth, CardTransaction, NormalExpense, SavingsEntry } from '@/types/finance'
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +29,7 @@ import {
   TrendingUp,
   TrendingDown,
   Receipt,
+  ShoppingCart,
   CreditCard,
   PiggyBank,
   Wallet,
@@ -48,6 +51,7 @@ function Summary() {
   const [expenses, setExpenses] = useState<BasicExpense[]>([])
   const [monthRows, setMonthRows] = useState<ExpenseMonth[]>([])
   const [txs, setTxs] = useState<CardTransaction[]>([])
+  const [normals, setNormals] = useState<NormalExpense[]>([])
   const [savings, setSavings] = useState<SavingsEntry[]>([])
   const [hideSavings] = useHideSavings()
 
@@ -66,13 +70,21 @@ function Summary() {
       const exp = supabase.from('basic_expenses').select('*')
       const mon = supabase.from('expense_months').select('*').in('month', keys)
       const trx = supabase.from('card_transactions').select('*')
+      const nrm = supabase.from('normal_expenses').select('*')
 
-      const [incRes, expRes, monRes, trxRes] = await Promise.all([
-        isPersonal ? inc.eq('user_id', user.id).is('household_id', null) : inc.eq('household_id', scope),
-        isPersonal ? exp.eq('user_id', user.id).is('household_id', null) : exp.eq('household_id', scope),
-        isPersonal ? mon.eq('user_id', user.id).is('household_id', null) : mon.eq('household_id', scope),
-        isPersonal ? trx.eq('user_id', user.id).is('household_id', null) : trx.eq('household_id', scope),
+      const [incRes, expRes, monRes, trxRes, nrmRes] = await Promise.all([
+        scoped(inc, scope, user.id),
+        scoped(exp, scope, user.id),
+        scoped(mon, scope, user.id),
+        scoped(trx, scope, user.id),
+        scoped(nrm, scope, user.id),
       ])
+
+      // normal_expenses puede no existir todavía (migración pendiente): no se avisa por eso
+      const failed = [incRes, expRes, monRes, trxRes, nrmRes].find((res) => res.error && res.error.code !== 'PGRST205')
+      if (failed?.error && !cancelled) {
+        toast.error('No se pudo cargar el resumen: ' + failed.error.message)
+      }
 
       let savingsData: SavingsEntry[] = []
       if (isPersonal) {
@@ -90,6 +102,7 @@ function Summary() {
       setExpenses((expRes.data ?? []) as BasicExpense[])
       setMonthRows((monRes.data ?? []) as ExpenseMonth[])
       setTxs((trxRes.data ?? []) as CardTransaction[])
+      setNormals((nrmRes.data ?? []) as NormalExpense[])
       setSavings(savingsData)
       setLoading(false)
     }
@@ -107,13 +120,15 @@ function Summary() {
     const lines = expenseLinesForMonth(expenses, monthRows, idx)
     const fixed = lines.reduce((acc, l) => acc + l.amount, 0)
     const installments = installmentsForMonth(txs, idx)
+    const normal = sumNormalExpenses(normals, idx)
     return {
       idx,
       label: monthShort(idx),
       income,
       fixed,
       installments,
-      outflow: fixed + installments,
+      normal,
+      outflow: fixed + installments + normal,
       lines,
     }
   })
@@ -157,21 +172,28 @@ function Summary() {
       value: fmt(current.income),
       hint: deltaText(current.income, previous.income),
       icon: Wallet,
-      color: 'text-emerald-400',
+      color: 'text-emerald-700 dark:text-emerald-400',
     },
     {
       label: 'Gastos fijos',
       value: fmt(current.fixed),
       hint: `${paidLines.length}/${current.lines.length} pagados`,
       icon: Receipt,
-      color: 'text-amber-400',
+      color: 'text-amber-700 dark:text-amber-400',
+    },
+    {
+      label: 'Gastos normales',
+      value: fmt(current.normal),
+      hint: deltaText(current.normal, previous.normal),
+      icon: ShoppingCart,
+      color: 'text-rose-600 dark:text-rose-400',
     },
     {
       label: 'Cuotas de tarjeta',
       value: fmt(current.installments),
       hint: deltaText(current.installments, previous.installments),
       icon: CreditCard,
-      color: 'text-purple-400',
+      color: 'text-purple-600 dark:text-purple-400',
     },
     ...(isPersonal
       ? [
@@ -180,7 +202,7 @@ function Summary() {
             value: hideSavings ? MASK : fmt(savedThisMonth),
             hint: 'Visible según tu opción en Ahorros',
             icon: PiggyBank,
-            color: 'text-sky-400',
+            color: 'text-sky-700 dark:text-sky-400',
           },
         ]
       : []),
@@ -191,7 +213,7 @@ function Summary() {
       {/* Encabezado con selector de mes */}
       <div className="space-y-3">
         <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-3xl">
-          <CalendarDays className="h-5 w-5 text-emerald-400 sm:h-7 sm:w-7" />
+          <CalendarDays className="h-5 w-5 text-emerald-700 dark:text-emerald-400 sm:h-7 sm:w-7" />
           Resumen mensual
         </h1>
 
@@ -208,7 +230,7 @@ function Summary() {
           </Button>
           <div className="text-center">
             <p className="font-semibold">{monthLabel(mi)}</p>
-            {inProgress && <p className="text-xs text-amber-400">Mes en curso</p>}
+            {inProgress && <p className="text-xs text-amber-700 dark:text-amber-400">Mes en curso</p>}
           </div>
           <Button
             type="button"
@@ -236,7 +258,7 @@ function Summary() {
               </p>
               <p
                 className={`text-3xl font-black tabular-nums sm:text-5xl ${
-                  balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                 }`}
               >
                 {fmt(balance)}
@@ -249,9 +271,9 @@ function Summary() {
               {previous.income + previous.outflow > 0 && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   {balanceDelta >= 0 ? (
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
                   ) : (
-                    <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
+                    <TrendingDown className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
                   )}
                   <span className="tabular-nums">
                     {balanceDelta >= 0 ? '+' : ''}
@@ -263,7 +285,7 @@ function Summary() {
           </Card>
 
           {/* Cifras del mes */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
             {kpis.map(({ icon: Icon, ...k }) => (
               <Card key={k.label} className="border-emerald-500/15">
                 <CardContent className="space-y-1 p-3 sm:p-4">
@@ -283,7 +305,7 @@ function Summary() {
             <CardHeader>
               <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
                 <span className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  <TrendingUp className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
                   Últimos 6 meses
                 </span>
                 <span className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
@@ -343,7 +365,7 @@ function Summary() {
             <Card className="border-emerald-500/15">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Receipt className="h-4 w-4 text-amber-400" />
+                  <Receipt className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                   Gastos fijos por categoría
                 </CardTitle>
               </CardHeader>
@@ -358,7 +380,7 @@ function Summary() {
                       <li key={c.name} className="space-y-1">
                         <div className="flex justify-between gap-3 text-sm">
                           <span className="truncate">{c.name}</span>
-                          <span className="shrink-0 font-semibold tabular-nums text-amber-400">{fmt(c.value)}</span>
+                          <span className="shrink-0 font-semibold tabular-nums text-amber-700 dark:text-amber-400">{fmt(c.value)}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-muted">
                           <div
@@ -377,12 +399,12 @@ function Summary() {
               <CardHeader>
                 <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
                   <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400" />
+                    <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
                     Estado de los gastos fijos
                   </span>
                   {pendingLines.length > 0 && (
                     <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                      Sin pagar <span className="font-semibold text-amber-400">{fmt(pendingTotal)}</span>
+                      Sin pagar <span className="font-semibold text-amber-700 dark:text-amber-400">{fmt(pendingTotal)}</span>
                     </span>
                   )}
                 </CardTitle>
@@ -402,9 +424,9 @@ function Summary() {
                           className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-2.5"
                         >
                           {l.paid ? (
-                            <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+                            <Check className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
                           ) : (
-                            <Clock className="h-4 w-4 shrink-0 text-amber-400" />
+                            <Clock className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
                           )}
                           <span
                             className={`min-w-0 flex-1 truncate text-sm ${

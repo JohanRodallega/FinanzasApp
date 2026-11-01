@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finanzas
 
-## Getting Started
+App de finanzas personales y compartidas (hogares): ingresos, gastos fijos, tarjetas de crédito con compras a cuotas, deudas, ahorros y resumen mensual.
 
-First, run the development server:
+Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · Supabase (auth + base de datos).
+
+## Empezar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # completa las claves de Supabase
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Comando         | Qué hace                         |
+| --------------- | -------------------------------- |
+| `npm run dev`   | Servidor de desarrollo           |
+| `npm run build` | Build de producción              |
+| `npm run lint`  | ESLint                           |
+| `npm test`      | Tests de la lógica (`lib/*.test.ts`) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estructura
 
-## Learn More
+- `app/`: rutas (`/` inicio, `/resumen`, `/ahorros`, `/login`), `error.tsx`, `not-found.tsx`, `loading.tsx`, `manifest.ts`.
+- `proxy.ts`: protege las rutas en el servidor; sin sesión redirige a `/login`.
+- `components/`: un directorio por módulo (`gastos`, `ingresos`, `tarjetas`, `deudas`, `ahorros`) y `shared/` (shell, navegación, avisos).
+- `lib/`: cálculos (`finance-calc`), fechas, formato, acceso a Supabase (`supabase`, `scope`) y avisos (`toast`).
 
-To learn more about Next.js, take a look at the following resources:
+## Autenticación
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+La sesión de Supabase se guarda en cookies (`@supabase/ssr`) para que `proxy.ts` la valide en el servidor. Los datos se protegen además con las políticas RLS de Supabase, que deben estar activas en todas las tablas (`incomes`, `basic_expenses`, `expense_months`, `credit_cards`, `card_transactions`, `debts`, `savings_entries`, `households`).

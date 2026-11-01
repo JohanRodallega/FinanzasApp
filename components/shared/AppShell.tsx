@@ -99,7 +99,7 @@ export function AppShell({
 
   if (!user) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
+      <div role="status" className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
         Cargando...
       </div>
     )
@@ -118,7 +118,7 @@ export function AppShell({
           onScopeChange={setScope}
           onHouseholdsChanged={handleHouseholdsChanged}
         />
-        <main className="container mx-auto space-y-4 px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-6 sm:p-6 sm:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
+        <main id="contenido" tabIndex={-1} className="container mx-auto space-y-4 outline-none px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-6 sm:p-6 sm:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
           {children}
         </main>
         <BottomNav />

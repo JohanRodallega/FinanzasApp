@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { SegmentBar } from '@/components/shared/SegmentBar'
 import { Debt } from '@/types/finance'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { fmt } from '@/lib/format'
 import { PlusCircle, Trash2, Banknote, Landmark } from 'lucide-react'
@@ -26,27 +27,29 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
   // Guardar nueva deuda
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !totalAmount) return
+    if (!title.trim() || !totalAmount) return
+
+    const total = parseFloat(totalAmount)
+    if (!(total > 0)) return toast.error('El monto total debe ser mayor que 0.')
 
     const owner = await ownerFields(householdId)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       return
     }
 
     const { error } = await supabase.from('debts').insert([
       {
         ...owner,
-        title,
-        total_amount: parseFloat(totalAmount),
+        title: title.trim(),
+        total_amount: total,
         paid_amount: 0,
-        creditor,
+        creditor: creditor.trim(),
       },
     ])
 
     if (error) {
-      console.error('Error al agregar deuda:', error.message)
-      alert('Error al guardar la deuda: ' + error.message)
+      toast.error('Error al guardar la deuda: ' + error.message)
       return
     }
 
@@ -68,17 +71,20 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
       .update({ paid_amount: newPaid })
       .eq('id', debt.id)
 
-    if (!error) {
-      setAbonoInput({ ...abonoInput, [debt.id]: '' })
-      onDebtUpdated()
+    if (error) {
+      toast.error('No se pudo registrar el abono: ' + error.message)
+      return
     }
+    setAbonoInput({ ...abonoInput, [debt.id]: '' })
+    onDebtUpdated()
   }
 
   // Eliminar una deuda
   const handleDeleteDebt = async (id: string) => {
     if (!window.confirm('¿Eliminar esta deuda?')) return
     const { error } = await supabase.from('debts').delete().eq('id', id)
-    if (!error) onDebtUpdated()
+    if (error) toast.error('No se pudo eliminar la deuda: ' + error.message)
+    else onDebtUpdated()
   }
 
   return (
@@ -87,14 +93,14 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
       <Card className="border-emerald-500/15">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Banknote className="h-4 w-4 text-rose-400" />
+            <Banknote className="h-4 w-4 text-rose-600 dark:text-rose-400" />
             Registrar deuda o préstamo
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddDebt} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Input
-              placeholder="Descripción (ej. Préstamo libre inversión)"
+              placeholder="Descripción (ej. Préstamo)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="h-10"
@@ -126,7 +132,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
       <Card className="border-emerald-500/15">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Landmark className="h-4 w-4 text-rose-400" />
+            <Landmark className="h-4 w-4 text-rose-600 dark:text-rose-400" />
             Control y progreso de deudas
           </CardTitle>
         </CardHeader>
@@ -136,7 +142,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
               No tienes deudas o préstamos registrados en esta vista.
             </div>
           ) : (
-            <ul className="grid gap-3 lg:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {debts.map((debt) => {
                 const paid = Number(debt.paid_amount || 0)
                 const total = Number(debt.total_amount)
@@ -150,7 +156,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/60">
-                        <Landmark className="h-5 w-5 text-rose-400" />
+                        <Landmark className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold">{debt.title}</p>
@@ -177,8 +183,8 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
                     <SegmentBar percent={progress} colorClass="bg-emerald-400" />
 
                     <div className="flex justify-between gap-2 text-xs tabular-nums">
-                      <span className="text-emerald-400">Abonado {fmt(paid)}</span>
-                      <span className="text-rose-400">
+                      <span className="text-emerald-700 dark:text-emerald-400">Abonado {fmt(paid)}</span>
+                      <span className="text-rose-600 dark:text-rose-400">
                         Falta {fmt(pending)} ({100 - progress}%)
                       </span>
                     </div>
@@ -195,7 +201,7 @@ export const DebtsModule: React.FC<DebtsModuleProps> = ({ debts, onDebtUpdated, 
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                        className="h-10 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
                         onClick={() => handleAddPayment(debt)}
                       >
                         Abonar

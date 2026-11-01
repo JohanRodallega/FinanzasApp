@@ -17,3 +17,13 @@ export async function ownerFields(householdId: string | null) {
     profile: householdId ? 'shared' : 'me',
   }
 }
+
+/**
+ * Limita una consulta a la vista activa: lo personal del usuario (sin hogar)
+ * o todo lo de un hogar.
+ */
+export function scoped<
+  T extends { eq: (column: string, value: string) => T; is: (column: string, value: null) => T },
+>(query: T, scope: string, userId: string): T {
+  return scope === 'personal' ? query.eq('user_id', userId).is('household_id', null) : query.eq('household_id', scope)
+}

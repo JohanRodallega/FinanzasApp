@@ -1,4 +1,4 @@
-import { Income, BasicExpense, CardTransaction, ExpenseMonth } from '@/types/finance'
+import { Income, BasicExpense, CardTransaction, ExpenseMonth, NormalExpense } from '@/types/finance'
 import { monthIndexOf, monthKey } from '@/lib/dates'
 
 /**
@@ -65,3 +65,11 @@ export function expenseLinesForMonth(
       }
     })
 }
+
+/** Gastos normales (sin fecha límite) que caen en un mes. */
+export function normalExpensesInMonth(expenses: NormalExpense[], mi: number): NormalExpense[] {
+  return expenses.filter((e) => monthIndexOf(e.expense_date) === mi)
+}
+
+export const sumNormalExpenses = (expenses: NormalExpense[], mi: number): number =>
+  normalExpensesInMonth(expenses, mi).reduce((acc, e) => acc + Number(e.amount), 0)

@@ -24,7 +24,7 @@ export const ListRow: React.FC<ListRowProps> = ({
   amountClassName,
   onDelete,
 }) => (
-  <li className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-2.5 transition-colors hover:bg-muted/40 sm:p-3">
+  <li className="flex min-w-0 items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-2.5 transition-colors hover:bg-muted/40 sm:p-3">
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/60">
       {icon}
     </div>

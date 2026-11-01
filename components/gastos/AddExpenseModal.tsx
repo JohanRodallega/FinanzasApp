@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { toast } from '@/lib/toast'
 import { ownerFields } from '@/lib/scope'
 import { Receipt } from 'lucide-react'
 
@@ -45,13 +46,18 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !amount) return
+    if (!title.trim() || !amount) return
+
+    const value = parseFloat(amount)
+    const day = parseInt(dueDate, 10)
+    if (!(value > 0)) return toast.error('El monto debe ser mayor que 0.')
+    if (!(day >= 1 && day <= 31)) return toast.error('El día de pago debe estar entre 1 y 31.')
 
     setLoading(true)
 
     const owner = await ownerFields(householdId)
     if (!owner) {
-      alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+      toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
       setLoading(false)
       return
     }
@@ -61,18 +67,17 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onExpenseAdded
         ...owner,
         profile_id: owner.user_id,
         is_shared: householdId !== null,
-        title,
-        amount: parseFloat(amount),
+        title: title.trim(),
+        amount: value,
         category,
-        due_date: parseInt(dueDate, 10),
+        due_date: day,
       },
     ])
 
     setLoading(false)
 
     if (error) {
-      console.error('Error al agregar gasto:', error.message)
-      alert('Error al guardar el gasto: ' + error.message)
+      toast.error('Error al guardar el gasto: ' + error.message)
     } else {
       setTitle('')
       setAmount('')

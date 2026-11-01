@@ -9,7 +9,8 @@ import { NAV_LINKS } from '@/components/shared/nav-links'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { Household } from '@/types/finance'
-import { User, Users, LogOut, Terminal } from 'lucide-react'
+import { Logo } from '@/components/shared/Logo'
+import { User, Users, LogOut } from 'lucide-react'
 
 interface NavbarProps {
   userName: string
@@ -22,7 +23,7 @@ interface NavbarProps {
 
 const chipBase =
   'inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm transition-colors'
-const chipActive = 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
+const chipActive = 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
 const chipIdle = 'border-border bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground'
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,11 +42,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2 sm:px-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-md border border-emerald-500/40 bg-emerald-500/10">
-            <Terminal className="h-4 w-4 text-emerald-400" />
-          </span>
+          <Logo className="h-8 w-8 text-foreground" />
           <span className="font-bold tracking-tight">
-            finanzas<span className="text-emerald-400">_</span>
+            finanzas<span className="text-emerald-700 dark:text-emerald-400">_</span>
           </span>
         </div>
 
@@ -55,9 +54,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Link
               key={href}
               href={href}
+              aria-current={pathname === href ? 'page' : undefined}
               className={`inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors ${
                 pathname === href
-                  ? 'bg-emerald-500/10 text-emerald-400'
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
             >
@@ -75,6 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <button
               type="button"
+              aria-pressed={scope === 'personal'}
               onClick={() => onScopeChange('personal')}
               className={`${chipBase} ${scope === 'personal' ? chipActive : chipIdle}`}
             >
@@ -86,6 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={h.id}
                 type="button"
+                aria-pressed={scope === h.id}
                 onClick={() => onScopeChange(h.id)}
                 className={`${chipBase} ${scope === h.id ? chipActive : chipIdle}`}
               >
@@ -99,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Usuario y acciones */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-xs font-bold text-emerald-400">
+            <span className="grid h-8 w-8 place-items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-xs font-bold text-emerald-700 dark:text-emerald-400">
               {initial}
             </span>
             <span className="hidden text-sm text-muted-foreground xl:inline">

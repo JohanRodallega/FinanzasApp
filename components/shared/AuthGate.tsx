@@ -36,7 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+      <div role="status" className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
         Cargando...
       </div>
     )

@@ -39,7 +39,7 @@ export const ExpenseRow: React.FC<ExpenseRowProps> = ({
           paid ? 'border-emerald-400 bg-emerald-400/20' : 'border-muted-foreground/40'
         }`}
       >
-        {paid && <Check className="h-4 w-4 text-emerald-400" />}
+        {paid && <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />}
       </span>
     </button>
 
@@ -58,7 +58,7 @@ export const ExpenseRow: React.FC<ExpenseRowProps> = ({
         {subtitle && <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>}
       </span>
       <span
-        className={`shrink-0 text-sm font-semibold tabular-nums ${paid ? 'text-muted-foreground' : 'text-amber-400'}`}
+        className={`shrink-0 text-sm font-semibold tabular-nums ${paid ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400'}`}
       >
         {amount}
       </span>
