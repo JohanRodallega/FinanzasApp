@@ -68,3 +68,26 @@ export async function deleteCardTransaction(tx: CardTransaction, card: CreditCar
   }
   toast.error('No se pudo eliminar la compra: ' + error.message)
 }
+
+/** Guarda la diferencia entre el saldo calculado y el saldo real de la cuenta. Devuelve true si se guardó. */
+export async function addBalanceAdjustment(delta: number, householdId: string | null, note?: string): Promise<boolean> {
+  const owner = await ownerFields(householdId)
+  if (!owner) {
+    toast.error('Tu sesión expiró. Vuelve a iniciar sesión.')
+    return false
+  }
+
+  const { error } = await supabase.from('balance_adjustments').insert([
+    { user_id: owner.user_id, household_id: owner.household_id, amount: delta, note: note?.trim() || null },
+  ])
+
+  if (error) {
+    const missing = error.code === 'PGRST205'
+    toast.error(
+      missing
+        ? 'Falta crear la tabla balance_adjustments en Supabase (supabase/migrations).'
+        : 'No se pudo guardar el ajuste: ' + error.message
+    )
+  }
+  return !error
+}

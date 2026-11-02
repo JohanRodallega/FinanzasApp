@@ -1,4 +1,4 @@
-import { Income, BasicExpense, CardTransaction, ExpenseMonth, NormalExpense } from '@/types/finance'
+import { Income, BasicExpense, CardTransaction, ExpenseMonth, NormalExpense, BalanceAdjustment } from '@/types/finance'
 import { monthIndexOf, monthKey } from '@/lib/dates'
 
 /**
@@ -104,6 +104,7 @@ export interface BalanceBreakdown {
   normal: number
   installments: number
   savings: number
+  adjustment: number
   balance: number
 }
 
@@ -118,6 +119,7 @@ export function currentBalance(
     normals: NormalExpense[]
     transactions: CardTransaction[]
     savingsNet: number
+    adjustments: BalanceAdjustment[]
   },
   mi: number
 ): BalanceBreakdown {
@@ -135,5 +137,14 @@ export function currentBalance(
   for (let m = firstTx; m <= mi; m++) installments += installmentsForMonth(data.transactions, m)
 
   const savings = data.savingsNet
-  return { incomes, fixedPaid, normal, installments, savings, balance: incomes - fixedPaid - normal - installments - savings }
+  const adjustment = data.adjustments.reduce((acc, a) => acc + Number(a.amount), 0)
+  return {
+    incomes,
+    fixedPaid,
+    normal,
+    installments,
+    savings,
+    adjustment,
+    balance: incomes - fixedPaid - normal - installments - savings + adjustment,
+  }
 }

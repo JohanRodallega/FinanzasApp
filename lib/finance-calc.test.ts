@@ -66,10 +66,31 @@ describe('currentBalance', () => {
         normals: [{ amount: 100, expense_date: '2026-10-05' }] as unknown as NormalExpense[],
         transactions: [],
         savingsNet: 300,
+        adjustments: [],
       },
       mi('2026-11-01')
     )
     expect(r.balance).toBe(400)
+  })
+
+  it('suma los ajustes de saldo, positivos y negativos', () => {
+    const base = {
+      incomes: [income('unico', 1000, '2026-10-01')],
+      expenseMonths: [],
+      normals: [],
+      transactions: [],
+      savingsNet: 0,
+    }
+    const up = currentBalance({ ...base, adjustments: [{ id: 'a', amount: 250 }] }, mi('2026-11-01'))
+    expect(up.adjustment).toBe(250)
+    expect(up.balance).toBe(1250)
+
+    const down = currentBalance(
+      { ...base, adjustments: [{ id: 'a', amount: 250 }, { id: 'b', amount: -400 }] },
+      mi('2026-11-01')
+    )
+    expect(down.adjustment).toBe(-150)
+    expect(down.balance).toBe(850)
   })
 })
 

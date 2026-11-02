@@ -41,6 +41,7 @@ import type {
   CardTransaction,
   Debt,
   NormalExpense,
+  BalanceAdjustment,
 } from '@/types/finance'
 import { CalendarDays, ArrowRight } from 'lucide-react'
 
@@ -56,6 +57,7 @@ function Dashboard() {
   const transactions = useScopedTable<CardTransaction>('card_transactions', 'las compras con tarjeta', scope, userId)
   const debts = useScopedTable<Debt>('debts', 'las deudas', scope, userId)
   const normals = useScopedTable<NormalExpense>('normal_expenses', 'los gastos normales', scope, userId, 'expense_date')
+  const adjustments = useScopedTable<BalanceAdjustment>('balance_adjustments', 'los ajustes de saldo', scope, userId)
 
   const [editing, setEditing] = useState<{ line: ExpenseLine; monthIndex: number } | null>(null)
 
@@ -72,7 +74,7 @@ function Dashboard() {
   }, [scope, userId])
 
   const refetchAll = () =>
-    [incomes, expenses, expenseMonths, cards, transactions, debts, normals].forEach((t) => t.refetch())
+    [incomes, expenses, expenseMonths, cards, transactions, debts, normals, adjustments].forEach((t) => t.refetch())
 
   // Gastos fijos: cambio inmediato en pantalla y luego se confirma con la base de datos
   const handleTogglePaid = async (line: ExpenseLine, monthIndex = mi) => {
@@ -117,6 +119,7 @@ function Dashboard() {
       normals: normals.rows,
       transactions: transactions.rows,
       savingsNet,
+      adjustments: adjustments.rows,
     },
     mi
   )
@@ -165,7 +168,7 @@ function Dashboard() {
         </div>
       </div>
 
-      <CurrentBalanceCard breakdown={balance} />
+      <CurrentBalanceCard breakdown={balance} householdId={householdId} onAdjusted={adjustments.refetch} />
 
       <KpiGrid
         totalIncomes={totalIncomes}
