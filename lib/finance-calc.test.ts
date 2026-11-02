@@ -10,7 +10,7 @@ import {
   totalIncomeUpTo,
 } from '@/lib/finance-calc'
 import { monthIndexOf } from '@/lib/dates'
-import type { BasicExpense, CardTransaction, ExpenseMonth, Income, NormalExpense } from '@/types/finance'
+import type { BasicExpense, CardPayment, CardTransaction, ExpenseMonth, Income, NormalExpense } from '@/types/finance'
 
 const mi = (date: string) => monthIndexOf(date)
 
@@ -91,6 +91,30 @@ describe('currentBalance', () => {
     )
     expect(down.adjustment).toBe(-150)
     expect(down.balance).toBe(850)
+  })
+})
+
+describe('currentBalance con pagos a tarjetas', () => {
+  const base = {
+    incomes: [income('unico', 1000, '2026-10-01')],
+    expenseMonths: [],
+    normals: [],
+    transactions: [{ id: 't', amount: 300, installments: 1, created_at: '2026-10-05T10:00:00' }] as unknown as CardTransaction[],
+    savingsNet: 0,
+    adjustments: [],
+  }
+  const pay = (amount: number) => [{ id: 'p', amount, created_at: '2026-10-20T10:00:00' }] as unknown as CardPayment[]
+
+  it('un pago igual a las cuotas no se descuenta dos veces', () => {
+    expect(currentBalance({ ...base, cardPayments: pay(300) }, mi('2026-11-01')).balance).toBe(700)
+  })
+
+  it('un pago mayor a las cuotas (adelanto) baja más el saldo', () => {
+    expect(currentBalance({ ...base, cardPayments: pay(500) }, mi('2026-11-01')).balance).toBe(500)
+  })
+
+  it('sin pagos se mantiene el descuento por cuotas', () => {
+    expect(currentBalance(base, mi('2026-11-01')).balance).toBe(700)
   })
 })
 

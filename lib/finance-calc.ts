@@ -1,4 +1,4 @@
-import { Income, BasicExpense, CardTransaction, ExpenseMonth, NormalExpense, BalanceAdjustment } from '@/types/finance'
+import { Income, BasicExpense, CardTransaction, ExpenseMonth, NormalExpense, BalanceAdjustment, CardPayment } from '@/types/finance'
 import { monthIndexOf, monthKey } from '@/lib/dates'
 
 /**
@@ -103,6 +103,9 @@ export interface BalanceBreakdown {
   fixedPaid: number
   normal: number
   installments: number
+  cardPayments: number
+  /** Lo que sale por tarjetas: el mayor entre cuotas acumuladas y pagos reales (evita contar dos veces). */
+  cardOut: number
   savings: number
   adjustment: number
   balance: number
@@ -110,7 +113,7 @@ export interface BalanceBreakdown {
 
 /**
  * Saldo real acumulado hasta `mi`: lo recibido menos lo ya pagado
- * (gastos fijos marcados como pagados, gastos normales, cuotas de tarjeta) y lo ahorrado.
+ * (gastos fijos marcados como pagados, gastos normales, tarjetas) y lo ahorrado.
  */
 export function currentBalance(
   data: {
@@ -118,6 +121,7 @@ export function currentBalance(
     expenseMonths: ExpenseMonth[]
     normals: NormalExpense[]
     transactions: CardTransaction[]
+    cardPayments?: CardPayment[]
     savingsNet: number
     adjustments: BalanceAdjustment[]
   },
@@ -136,6 +140,11 @@ export function currentBalance(
   let installments = 0
   for (let m = firstTx; m <= mi; m++) installments += installmentsForMonth(data.transactions, m)
 
+  const cardPayments = (data.cardPayments ?? [])
+    .filter((p) => monthIndexOf(p.created_at) <= mi)
+    .reduce((acc, p) => acc + Number(p.amount), 0)
+  const cardOut = Math.max(installments, cardPayments)
+
   const savings = data.savingsNet
   const adjustment = data.adjustments.reduce((acc, a) => acc + Number(a.amount), 0)
   return {
@@ -143,8 +152,10 @@ export function currentBalance(
     fixedPaid,
     normal,
     installments,
+    cardPayments,
+    cardOut,
     savings,
     adjustment,
-    balance: incomes - fixedPaid - normal - installments - savings + adjustment,
+    balance: incomes - fixedPaid - normal - cardOut - savings + adjustment,
   }
 }

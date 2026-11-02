@@ -11,7 +11,7 @@ interface CurrentBalanceCardProps {
 }
 
 export function CurrentBalanceCard({ breakdown, householdId, onAdjusted }: CurrentBalanceCardProps) {
-  const { incomes, fixedPaid, normal, installments, savings, adjustment, balance } = breakdown
+  const { incomes, fixedPaid, normal, cardOut, savings, adjustment, balance } = breakdown
   const positive = balance >= 0
 
   return (
@@ -31,8 +31,8 @@ export function CurrentBalanceCard({ breakdown, householdId, onAdjusted }: Curre
           {fmt(balance)}
         </p>
         <p className="text-[11px] text-muted-foreground">
-          Recibido {fmt(incomes)} − fijos pagados {fmt(fixedPaid)} − normales {fmt(normal)} − cuotas{' '}
-          {fmt(installments)} − ahorrado {fmt(savings)}
+          Recibido {fmt(incomes)} − fijos pagados {fmt(fixedPaid)} − normales {fmt(normal)} − tarjetas{' '}
+          {fmt(cardOut)} − ahorrado {fmt(savings)}
           {adjustment !== 0 && ` ${adjustment > 0 ? '+' : '−'} ajuste ${fmt(Math.abs(adjustment))}`}
         </p>
       </CardContent>

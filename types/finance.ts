@@ -86,6 +86,17 @@ export interface CardTransaction {
   created_at: string
 }
 
+export interface CardPayment {
+  id: string
+  card_id: string
+  user_id?: string | null
+  household_id?: string | null
+  amount: number
+  kind: 'pago' | 'adelanto'
+  note?: string | null
+  created_at: string
+}
+
 export interface Debt {
   id: string
   user_id?: string | null

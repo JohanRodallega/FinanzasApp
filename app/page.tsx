@@ -10,6 +10,7 @@ import { AddExpenseModal } from '@/components/gastos/AddExpenseModal'
 import { AddNormalExpenseModal } from '@/components/gastos-normales/AddNormalExpenseModal'
 import { NormalExpensesCard } from '@/components/gastos-normales/NormalExpensesCard'
 import { AddCreditCardModal } from '@/components/tarjetas/AddCreditCardModal'
+import { AddCardPaymentModal } from '@/components/tarjetas/AddCardPaymentModal'
 import { AddCardTransactionModal } from '@/components/tarjetas/AddCardTransactionModal'
 import { DebtsModule } from '@/components/deudas/DebtsModule'
 import { FinancialCharts } from '@/components/dashboard/FinancialCharts'
@@ -22,7 +23,7 @@ import { CardsSection } from '@/components/dashboard/CardsSection'
 import { IncomeHistoryCard } from '@/components/dashboard/IncomeHistoryCard'
 import { supabase } from '@/lib/supabase'
 import { useScopedTable } from '@/lib/use-scoped-table'
-import { deleteCardTransaction, deleteRow, setExpensePaid } from '@/lib/mutations'
+import { deleteCardPayment, deleteCardTransaction, deleteRow, setExpensePaid } from '@/lib/mutations'
 import { currentMonthIndex, monthKey, monthLongName } from '@/lib/dates'
 import {
   currentBalance,
@@ -39,6 +40,7 @@ import type {
   ExpenseMonth,
   CreditCard,
   CardTransaction,
+  CardPayment,
   Debt,
   NormalExpense,
   BalanceAdjustment,
@@ -55,6 +57,7 @@ function Dashboard() {
   const expenseMonths = useScopedTable<ExpenseMonth>('expense_months', 'los pagos del mes', scope, userId)
   const cards = useScopedTable<CreditCard>('credit_cards', 'las tarjetas', scope, userId)
   const transactions = useScopedTable<CardTransaction>('card_transactions', 'las compras con tarjeta', scope, userId)
+  const cardPayments = useScopedTable<CardPayment>('card_payments', 'los pagos de tarjetas', scope, userId)
   const debts = useScopedTable<Debt>('debts', 'las deudas', scope, userId)
   const normals = useScopedTable<NormalExpense>('normal_expenses', 'los gastos normales', scope, userId, 'expense_date')
   const adjustments = useScopedTable<BalanceAdjustment>('balance_adjustments', 'los ajustes de saldo', scope, userId)
@@ -74,7 +77,7 @@ function Dashboard() {
   }, [scope, userId])
 
   const refetchAll = () =>
-    [incomes, expenses, expenseMonths, cards, transactions, debts, normals, adjustments].forEach((t) => t.refetch())
+    [incomes, expenses, expenseMonths, cards, transactions, cardPayments, debts, normals, adjustments].forEach((t) => t.refetch())
 
   // Gastos fijos: cambio inmediato en pantalla y luego se confirma con la base de datos
   const handleTogglePaid = async (line: ExpenseLine, monthIndex = mi) => {
@@ -118,6 +121,7 @@ function Dashboard() {
       expenseMonths: expenseMonths.rows,
       normals: normals.rows,
       transactions: transactions.rows,
+      cardPayments: cardPayments.rows,
       savingsNet,
       adjustments: adjustments.rows,
     },
@@ -165,6 +169,7 @@ function Dashboard() {
           <AddNormalExpenseModal onAdded={refetchAll} householdId={householdId} />
           <AddCreditCardModal onCardAdded={refetchAll} householdId={householdId} />
           <AddCardTransactionModal cards={cards.rows} onTransactionAdded={refetchAll} />
+          <AddCardPaymentModal cards={cards.rows} onPaymentAdded={refetchAll} />
         </div>
       </div>
 
@@ -228,6 +233,10 @@ function Dashboard() {
           if (await deleteRow('credit_cards', id, '¿Eliminar esta tarjeta?', 'la tarjeta')) cards.refetch()
         }}
         onDeleteTransaction={handleDeleteTransaction}
+        payments={cardPayments.rows}
+        onDeletePayment={async (p) => {
+          if (await deleteCardPayment(p, cards.rows.find((c) => c.id === p.card_id))) refetchAll()
+        }}
       />
 
       <IncomeHistoryCard
