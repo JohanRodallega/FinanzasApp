@@ -1,4 +1,4 @@
-# Finanzas
+# Finanzapp
 
 App de finanzas personales y compartidas (hogares): ingresos, gastos fijos, tarjetas de crédito con compras a cuotas, deudas, ahorros y resumen mensual.
 

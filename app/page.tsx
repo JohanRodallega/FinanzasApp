@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { AuthGate } from '@/components/shared/AuthGate'
 import { AppShell, useApp } from '@/components/shared/AppShell'
 import { EditExpenseModal } from '@/components/gastos/EditExpenseModal'
@@ -21,6 +20,7 @@ import { CurrentBalanceCard } from '@/components/dashboard/CurrentBalanceCard'
 import { OverdueExpensesCard } from '@/components/dashboard/OverdueExpensesCard'
 import { CardsSection } from '@/components/dashboard/CardsSection'
 import { IncomeHistoryCard } from '@/components/dashboard/IncomeHistoryCard'
+import { SummaryNotice } from '@/components/dashboard/SummaryNotice'
 import { supabase } from '@/lib/supabase'
 import { useScopedTable } from '@/lib/use-scoped-table'
 import { deleteCardPayment, deleteCardTransaction, deleteRow, setExpensePaid } from '@/lib/mutations'
@@ -45,7 +45,6 @@ import type {
   NormalExpense,
   BalanceAdjustment,
 } from '@/types/finance'
-import { CalendarDays, ArrowRight } from 'lucide-react'
 
 function Dashboard() {
   const { user, scope, householdId } = useApp()
@@ -139,25 +138,14 @@ function Dashboard() {
     <>
       {/* Aviso del resumen del mes anterior (primeros días del mes) */}
       {new Date().getDate() <= 7 && (
-        <Link
-          href="/resumen"
-          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm transition-colors hover:bg-emerald-500/15"
-        >
-          <span className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
-            <span>
-              Ya está listo tu resumen de <strong>{monthLongName(mi - 1)}</strong>
-            </span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
-        </Link>
+        <SummaryNotice monthId={monthKey(mi - 1)} monthName={monthLongName(mi - 1)} />
       )}
 
       {/* Encabezado y acciones rápidas */}
       <div className="space-y-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
-            Dashboard de Finanzas<span className="animate-pulse text-emerald-700 dark:text-emerald-400">_</span>
+            Dashboard de Finanzapp<span className="animate-pulse text-emerald-700 dark:text-emerald-400">_</span>
           </h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
             Ingresos, gastos fijos, gastos normales, tarjetas y compras a cuotas.

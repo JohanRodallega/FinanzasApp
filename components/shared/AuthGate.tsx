@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { LoadingScreen } from '@/components/shared/LoadingScreen'
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -35,11 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [router])
 
   if (!ready) {
-    return (
-      <div role="status" className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        Cargando...
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   return <>{children}</>

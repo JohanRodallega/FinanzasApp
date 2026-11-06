@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react'
 import { Navbar } from '@/components/shared/Navbar'
 import { BottomNav } from '@/components/shared/BottomNav'
+import { LoadingScreen } from '@/components/shared/LoadingScreen'
 import { supabase } from '@/lib/supabase'
 import { Household } from '@/types/finance'
 
@@ -98,11 +99,7 @@ export function AppShell({
   }
 
   if (!user) {
-    return (
-      <div role="status" className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
-        Cargando...
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   const householdId = scope === 'personal' ? null : scope

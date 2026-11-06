@@ -58,3 +58,47 @@ body {
   background-color: var(--background);
   color: var(--foreground);
 }
+
+/* ---------- Loading page ---------- */
+@keyframes loader-bill {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes loader-coin {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: 0.85; }
+}
+
+@keyframes loader-glow {
+  0%, 100% { transform: scale(0.9); opacity: 0.45; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+@keyframes loader-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(260%); }
+}
+
+@keyframes loader-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.loader-in { animation: loader-in 0.45s ease-out both; }
+.loader-glow { animation: loader-glow 2.4s ease-in-out infinite; }
+.loader-bill { animation: loader-bill 1.8s ease-in-out infinite; }
+.loader-bill-1 { animation-delay: 0s; }
+.loader-bill-2 { animation-delay: 0.15s; }
+.loader-bill-3 { animation-delay: 0.3s; }
+.loader-coin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loader-coin 1.8s ease-in-out 0.3s infinite;
+}
+.loader-bar { animation: loader-bar 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-in, .loader-glow, .loader-bill, .loader-coin, .loader-bar { animation: none; }
+  .loader-bar { transform: translateX(80%); }
+}

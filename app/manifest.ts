@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Finanzas',
-    short_name: 'Finanzas',
+    name: 'Finanzapp',
+    short_name: 'Finanzapp',
     description: 'Aplicación de finanzas personales y compartidas',
     start_url: '/',
     display: 'standalone',

@@ -11,12 +11,12 @@ interface CurrentBalanceCardProps {
 }
 
 export function CurrentBalanceCard({ breakdown, householdId, onAdjusted }: CurrentBalanceCardProps) {
-  const { incomes, fixedPaid, normal, cardOut, savings, adjustment, balance } = breakdown
+  const { balance } = breakdown
   const positive = balance >= 0
 
   return (
     <Card className={positive ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/10'}>
-      <CardContent className="space-y-1 pt-4">
+      <CardContent className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <Landmark className="h-4 w-4" /> Saldo actual
@@ -29,11 +29,6 @@ export function CurrentBalanceCard({ breakdown, householdId, onAdjusted }: Curre
           }`}
         >
           {fmt(balance)}
-        </p>
-        <p className="text-[11px] text-muted-foreground">
-          Recibido {fmt(incomes)} − fijos pagados {fmt(fixedPaid)} − normales {fmt(normal)} − tarjetas{' '}
-          {fmt(cardOut)} − ahorrado {fmt(savings)}
-          {adjustment !== 0 && ` ${adjustment > 0 ? '+' : '−'} ajuste ${fmt(Math.abs(adjustment))}`}
         </p>
       </CardContent>
     </Card>

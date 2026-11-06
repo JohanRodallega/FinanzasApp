@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2">
           <Logo className="h-8 w-8 text-foreground" />
           <span className="font-bold tracking-tight">
-            finanzas<span className="text-emerald-700 dark:text-emerald-400">_</span>
+            finanzapp<span className="text-emerald-700 dark:text-emerald-400">_</span>
           </span>
         </div>
 

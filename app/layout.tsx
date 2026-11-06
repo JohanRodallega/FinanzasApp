@@ -8,13 +8,13 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'Finanzas',
-    template: '%s · Finanzas',
+    default: 'Finanzapp',
+    template: '%s · Finanzapp',
   },
   description: 'Aplicación de finanzas personales y compartidas',
-  applicationName: 'Finanzas',
+  applicationName: 'Finanzapp',
   openGraph: {
-    title: 'Finanzas',
+    title: 'Finanzapp',
     description: 'Aplicación de finanzas personales y compartidas',
     type: 'website',
     locale: 'es_CO',

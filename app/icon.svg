@@ -1,13 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <mask id="back"><rect width="64" height="64" fill="#fff"/><rect x="6.5" y="13.5" width="51" height="35" rx="6.5" fill="#000"/><rect x="3.5" y="20.5" width="57" height="35" rx="6.5" fill="#000"/></mask>
-    <mask id="mid"><rect width="64" height="64" fill="#fff"/><rect x="3.5" y="20.5" width="57" height="35" rx="6.5" fill="#000"/></mask>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="#000"/>
-  <g fill="#fff">
-    <rect x="12" y="11" width="40" height="30" rx="4" mask="url(#back)"/>
-    <rect x="9" y="16" width="46" height="30" rx="4" mask="url(#mid)"/>
-    <path fill-rule="evenodd" d="M10 23h44a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V27a4 4 0 0 1 4-4zM32 30a8 8 0 1 0 .001 0zM13 36a2 2 0 1 0 .001 0zM51 36a2 2 0 1 0 .001 0z"/>
-    <circle cx="32" cy="38" r="3"/>
+  <rect width="64" height="64" rx="14" fill="#09090b"/>
+  <g transform="translate(0 2)">
+    <rect x="18" y="8" width="38" height="24" rx="4" fill="#166534"/>
+    <rect x="13" y="15" width="40" height="26" rx="4" fill="#15803d"/>
+    <rect x="8" y="22" width="48" height="30" rx="5" fill="#16a34a"/>
+    <rect x="41" y="8" width="4" height="44" fill="#14532d"/>
+    <circle cx="32" cy="37" r="6" fill="#dcfce7"/>
+    <circle cx="15" cy="37" r="2" fill="#dcfce7"/>
+    <circle cx="49" cy="37" r="2" fill="#dcfce7"/>
   </g>
 </svg>
